@@ -9,136 +9,161 @@ const { api } = apiUtils;
 /**
  * Obtiene los inmuebles de un propietario
  */
-const getInmuebles = async () => {
+const getInmuebles = async (consultaData: {
+  cedula: string;
+  telefono: string;
+  codigoVerificacion: string;
+  nitCopropiedad: string;
+}) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/propietarios/consultar', consultaData);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de inmuebles
-    return [
-      {
-        id: '1',
-        tipo: 'Apartamento',
-        numero: '301',
-        torre: 'A',
-        estado: 'al_dia',
-        ultimoPago: '2023-10-15',
-        proximoPago: '2023-11-15'
-      },
-      {
-        id: '2',
-        tipo: 'Parqueadero',
-        numero: 'P12',
-        torre: '',
-        estado: 'al_dia',
-        ultimoPago: '2023-10-15',
-        proximoPago: '2023-11-15'
-      }
-    ];
+    if (response.data.status === 'success') {
+      return response.data.data.inmuebles || [];
+    } else {
+      throw new Error(response.data.message || 'Error al obtener inmuebles');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener inmuebles');
+    if (error.response) {
+      // Error del servidor
+      throw new Error(error.response.data.message || 'Error al obtener inmuebles');
+    } else if (error.request) {
+      // Error de conexión
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      // Otro tipo de error
+      throw new Error(error.message || 'Error al obtener inmuebles');
+    }
   }
 };
 
 /**
- * Obtiene los paz y salvos de un propietario
+ * Obtiene los paz y salvos generados de un propietario
+ * En el modelo actual, no se almacenan los paz y salvos previamente generados,
+ * pero esta función quedaría preparada para cuando se implemente el historial
  */
-const getPazYSalvos = async () => {
+const getPazYSalvos = async (propietarioId?: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
-    
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de paz y salvos
-    return [
-      {
-        id: '1',
-        inmuebleId: '1',
-        inmuebleInfo: 'Apartamento Torre A - 301',
-        fechaGeneracion: '2023-10-15',
-        fechaVencimiento: '2023-11-14',
-        estado: 'vigente',
-        url: '#'
-      },
-      {
-        id: '2',
-        inmuebleId: '1',
-        inmuebleInfo: 'Apartamento Torre A - 301',
-        fechaGeneracion: '2023-09-15',
-        fechaVencimiento: '2023-10-14',
-        estado: 'vencido',
-        url: '#'
-      },
-      {
-        id: '3',
-        inmuebleId: '2',
-        inmuebleInfo: 'Parqueadero P12',
-        fechaGeneracion: '2023-10-15',
-        fechaVencimiento: '2023-11-14',
-        estado: 'vigente',
-        url: '#'
-      }
-    ];
+    const response = await api.get(`/propietarios/${propietarioId}/paz-y-salvos`);
+    return response.data.data || [];
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener paz y salvos');
+    console.error('Error al obtener paz y salvos:', error);
+    throw new Error('Error al obtener el historial de paz y salvos');
   }
 };
 
 /**
  * Genera un nuevo paz y salvo para un inmueble
  */
-const generarPazYSalvo = async (inmuebleId: string) => {
+const generarPazYSalvo = async (datosGeneracion: {
+  cedula: string;
+  telefono: string;
+  codigoVerificacion: string;
+  nitCopropiedad: string;
+  inmuebleId: string;
+}) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/propietarios/generar-paz-y-salvo', datosGeneracion);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Simulamos que se ha generado correctamente
-    const hoy = new Date();
-    const vencimiento = new Date();
-    vencimiento.setDate(hoy.getDate() + 30); // Vence en 30 días
-    
-    return {
-      id: `nuevo-${Date.now()}`,
-      inmuebleId,
-      inmuebleInfo: inmuebleId === '1' ? 'Apartamento Torre A - 301' : 'Parqueadero P12',
-      fechaGeneracion: hoy.toISOString().split('T')[0],
-      fechaVencimiento: vencimiento.toISOString().split('T')[0],
-      estado: 'vigente',
-      url: '#'
-    };
+    if (response.data.status === 'success') {
+      // El backend retorna el documento generado o la URL para descargarlo
+      return {
+        success: true,
+        documento: response.data.data.documento,
+        url: response.data.data.url,
+        fechaGeneracion: response.data.data.fechaGeneracion,
+        message: response.data.message
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al generar paz y salvo');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al generar paz y salvo');
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al generar paz y salvo');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al generar paz y salvo');
+    }
   }
 };
 
 /**
- * Actualiza el perfil de un propietario
+ * Busca una copropiedad por NIT
  */
-const updatePerfil = async (data: any) => {
+const buscarCopropiedad = async (nit: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.get(`/propietarios/copropiedad/${nit}`);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    return {
-      success: true,
-      propietario: {
-        ...data
-      }
-    };
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Copropiedad no encontrada');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al actualizar perfil');
+    if (error.response && error.response.status === 404) {
+      throw new Error('Copropiedad no encontrada o inactiva');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al buscar copropiedad');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al buscar copropiedad');
+    }
+  }
+};
+
+/**
+ * Solicita código de verificación SMS
+ */
+const solicitarCodigoSMS = async (telefono: string) => {
+  try {
+    const response = await api.post('/propietarios/solicitar-codigo', {
+      telefono,
+      tipo: 'verificacion'
+    });
+    
+    if (response.data.status === 'success') {
+      return { success: true, message: response.data.message };
+    } else {
+      throw new Error(response.data.message || 'Error al enviar código SMS');
+    }
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al enviar código SMS');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al enviar código SMS');
+    }
+  }
+};
+
+/**
+ * Verifica el estado de cuenta de un propietario
+ */
+const verificarEstadoCuenta = async (datosVerificacion: {
+  cedula: string;
+  telefono: string;
+  codigoVerificacion: string;
+  nitCopropiedad: string;
+}) => {
+  try {
+    const response = await api.post('/propietarios/verificar-estado', datosVerificacion);
+    
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Error al verificar estado de cuenta');
+    }
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al verificar estado de cuenta');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al verificar estado de cuenta');
+    }
   }
 };
 
@@ -146,5 +171,7 @@ export const propietariosApi = {
   getInmuebles,
   getPazYSalvos,
   generarPazYSalvo,
-  updatePerfil,
+  buscarCopropiedad,
+  solicitarCodigoSMS,
+  verificarEstadoCuenta,
 };

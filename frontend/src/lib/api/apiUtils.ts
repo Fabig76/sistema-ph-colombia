@@ -5,10 +5,19 @@
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
-// Constantes
+// Constantes de configuración
 const TOKEN_KEY = 'ph_auth_token';
 const USER_DATA_KEY = 'ph_user_data';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+// URL base de la API usando nuevas variables de entorno
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+const API_VERSION = process.env.NEXT_PUBLIC_API_VERSION || 'v1';
+const API_URL = `${API_BASE_URL}/api/${API_VERSION}`;
+
+// Configuración adicional
+const IS_DEVELOPMENT = process.env.NEXT_PUBLIC_NODE_ENV === 'development';
+const DEBUG_MODE = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
+const MOCK_APIS = process.env.NEXT_PUBLIC_MOCK_APIS === 'true';
 
 // Creamos una instancia de axios con la configuración base
 const api = axios.create({
@@ -146,6 +155,49 @@ const getUserInitials = (): string => {
   return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
 };
 
+/**
+ * Función de debugging para verificar configuración
+ */
+const debugApiConfig = () => {
+  if (DEBUG_MODE) {
+    console.log('🔧 API Configuration:', {
+      API_BASE_URL,
+      API_VERSION,
+      API_URL,
+      IS_DEVELOPMENT,
+      DEBUG_MODE,
+      MOCK_APIS
+    });
+  }
+};
+
+/**
+ * Función para probar conectividad con el backend
+ */
+const testBackendConnection = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/${API_VERSION}/health`);
+    const data = await response.json();
+    
+    if (DEBUG_MODE) {
+      console.log('✅ Backend conectado:', data);
+    }
+    
+    return { success: true, data };
+  } catch (error) {
+    if (DEBUG_MODE) {
+      console.error('❌ Error conectando al backend:', error);
+    }
+    
+    return { success: false, error };
+  }
+};
+
+// Ejecutar debug al cargar si está habilitado
+if (typeof window !== 'undefined' && DEBUG_MODE) {
+  debugApiConfig();
+}
+
 export const apiUtils = {
   api,
   saveAuthToken,
@@ -158,4 +210,12 @@ export const apiUtils = {
   getUserRole,
   hasRole,
   getUserInitials,
+  debugApiConfig,
+  testBackendConnection,
+  // Constantes útiles
+  API_URL,
+  API_BASE_URL,
+  IS_DEVELOPMENT,
+  DEBUG_MODE,
+  MOCK_APIS
 };

@@ -11,43 +11,21 @@ const { api } = apiUtils;
  */
 const getCopropiedades = async () => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.get('/admin-ph/copropiedades');
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de copropiedades
-    return [
-      {
-        id: '1',
-        nombre: 'Edificio Los Pinos',
-        nit: '900123456-7',
-        direccion: 'Calle 123 #45-67, Bogotá',
-        totalPropietarios: 45,
-        totalInmuebles: 60,
-        totalPazYSalvos: 28,
-        fechaRegistro: '2023-08-15',
-        estado: 'activo',
-        googleSheetUrl: 'https://docs.google.com/spreadsheets/d/example1',
-        googleDocUrl: 'https://docs.google.com/document/d/example1'
-      },
-      {
-        id: '2',
-        nombre: 'Conjunto Residencial El Paraíso',
-        nit: '901234567-8',
-        direccion: 'Carrera 78 #90-12, Medellín',
-        totalPropietarios: 120,
-        totalInmuebles: 150,
-        totalPazYSalvos: 75,
-        fechaRegistro: '2023-09-20',
-        estado: 'activo',
-        googleSheetUrl: 'https://docs.google.com/spreadsheets/d/example2',
-        googleDocUrl: 'https://docs.google.com/document/d/example2'
-      }
-    ];
+    if (response.data.status === 'success') {
+      return response.data.data || [];
+    } else {
+      throw new Error(response.data.message || 'Error al obtener copropiedades');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener copropiedades');
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener copropiedades');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al obtener copropiedades');
+    }
   }
 };
 
@@ -56,94 +34,61 @@ const getCopropiedades = async () => {
  */
 const getCopropiedadById = async (id: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.get(`/admin-ph/copropiedades/${id}`);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de la copropiedad
-    if (id === '1') {
-      return {
-        id: '1',
-        nombre: 'Edificio Los Pinos',
-        nit: '900123456-7',
-        direccion: 'Calle 123 #45-67, Bogotá',
-        totalPropietarios: 45,
-        totalInmuebles: 60,
-        totalPazYSalvos: 28,
-        fechaRegistro: '2023-08-15',
-        estado: 'activo',
-        googleSheetUrl: 'https://docs.google.com/spreadsheets/d/example1',
-        googleDocUrl: 'https://docs.google.com/document/d/example1',
-        resolucion: {
-          numero: '12345',
-          fecha: '2023-07-01'
-        }
-      };
-    } else if (id === '2') {
-      return {
-        id: '2',
-        nombre: 'Conjunto Residencial El Paraíso',
-        nit: '901234567-8',
-        direccion: 'Carrera 78 #90-12, Medellín',
-        totalPropietarios: 120,
-        totalInmuebles: 150,
-        totalPazYSalvos: 75,
-        fechaRegistro: '2023-09-20',
-        estado: 'activo',
-        googleSheetUrl: 'https://docs.google.com/spreadsheets/d/example2',
-        googleDocUrl: 'https://docs.google.com/document/d/example2',
-        resolucion: {
-          numero: '67890',
-          fecha: '2023-08-15'
-        }
-      };
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Error al obtener detalles de copropiedad');
     }
-    
-    throw new Error('Copropiedad no encontrada');
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener copropiedad');
+    if (error.response && error.response.status === 404) {
+      throw new Error('Copropiedad no encontrada');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener detalles de copropiedad');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al obtener detalles de copropiedad');
+    }
   }
 };
 
 /**
  * Registra una nueva copropiedad
  */
-const registrarCopropiedad = async (data: any) => {
+const registrarCopropiedad = async (data: {
+  nombre: string;
+  nit: string;
+  resolucionNumero: string;
+  resolucionFecha: string;
+  googleSheetUrl: string;
+  googleDocUrl: string;
+}) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/admin-ph/copropiedades', data);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Validamos que el NIT y el nombre estén en las dos primeras columnas de la hoja de Google
-    // En un entorno real, esto se haría en el backend
-    
-    // Simulamos una respuesta exitosa
-    return {
-      success: true,
-      copropiedad: {
-        id: `nuevo-${Date.now()}`,
-        nombre: data.nombre,
-        nit: data.nit,
-        direccion: '',
-        totalPropietarios: 0,
-        totalInmuebles: 0,
-        totalPazYSalvos: 0,
-        fechaRegistro: new Date().toISOString().split('T')[0],
-        estado: 'activo',
-        googleSheetUrl: data.googleSheetUrl,
-        googleDocUrl: data.googleDocUrl,
-        resolucion: {
-          numero: data.resolucionNumero,
-          fecha: data.resolucionFecha
-        }
-      }
-    };
+    if (response.data.status === 'success') {
+      return {
+        success: true,
+        copropiedad: response.data.data,
+        message: response.data.message
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al registrar copropiedad');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al registrar copropiedad');
+    if (error.response && error.response.status === 400) {
+      throw new Error(error.response.data.message || 'Datos de copropiedad inválidos');
+    } else if (error.response && error.response.status === 409) {
+      throw new Error('El NIT de copropiedad ya está registrado');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al registrar copropiedad');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al registrar copropiedad');
+    }
   }
 };
 
@@ -152,19 +97,26 @@ const registrarCopropiedad = async (data: any) => {
  */
 const eliminarCopropiedad = async (id: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.delete(`/admin-ph/copropiedades/${id}`);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    return {
-      success: true,
-      message: 'Copropiedad eliminada correctamente'
-    };
+    if (response.data.status === 'success') {
+      return {
+        success: true,
+        message: response.data.message || 'Copropiedad eliminada correctamente'
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al eliminar copropiedad');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al eliminar copropiedad');
+    if (error.response && error.response.status === 404) {
+      throw new Error('Copropiedad no encontrada');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al eliminar copropiedad');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al eliminar copropiedad');
+    }
   }
 };
 
@@ -173,67 +125,51 @@ const eliminarCopropiedad = async (id: string) => {
  */
 const getEstadisticas = async () => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.get('/admin-ph/estadisticas');
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de estadísticas
-    return {
-      totalCopropiedades: 2,
-      totalPropietarios: 165,
-      totalPazYSalvos: 103,
-      proximosVencimientos: [
-        {
-          id: '1',
-          copropiedad: 'Edificio Los Pinos',
-          fecha: '2023-11-15'
-        },
-        {
-          id: '2',
-          copropiedad: 'Conjunto Residencial El Paraíso',
-          fecha: '2023-11-20'
-        }
-      ],
-      copropiedadesRecientes: [
-        {
-          id: '2',
-          nombre: 'Conjunto Residencial El Paraíso',
-          fecha: '2023-09-20'
-        },
-        {
-          id: '1',
-          nombre: 'Edificio Los Pinos',
-          fecha: '2023-08-15'
-        }
-      ]
-    };
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Error al obtener estadísticas');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener estadísticas');
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener estadísticas');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al obtener estadísticas');
+    }
   }
 };
 
 /**
  * Actualiza el perfil del administrador
  */
-const updatePerfil = async (data: any) => {
+const updatePerfil = async (data: {
+  nombre?: string;
+  email?: string;
+  celular?: string;
+}) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.put('/admin-ph/perfil', data);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    return {
-      success: true,
-      admin: {
-        ...data
-      }
-    };
+    if (response.data.status === 'success') {
+      return {
+        success: true,
+        admin: response.data.data
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al actualizar perfil');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al actualizar perfil');
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al actualizar perfil');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al actualizar perfil');
+    }
   }
 };
 
@@ -242,40 +178,21 @@ const updatePerfil = async (data: any) => {
  */
 const getEstadoSuscripcion = async () => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.get('/admin-ph/suscripcion');
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Datos simulados de suscripción
-    return {
-      estado: 'activo',
-      plan: 'Básico',
-      fechaInicio: '2023-08-15',
-      fechaRenovacion: '2023-11-15',
-      precio: 20000,
-      copropiedadesIncluidas: 2,
-      diasRestantesPrueba: 0,
-      historialPagos: [
-        {
-          id: '1',
-          fecha: '2023-10-15',
-          monto: 40000,
-          estado: 'completado',
-          metodo: 'tarjeta'
-        },
-        {
-          id: '2',
-          fecha: '2023-09-15',
-          monto: 40000,
-          estado: 'completado',
-          metodo: 'tarjeta'
-        }
-      ]
-    };
+    if (response.data.status === 'success') {
+      return response.data.data;
+    } else {
+      throw new Error(response.data.message || 'Error al obtener estado de suscripción');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al obtener estado de suscripción');
+    if (error.response) {
+      throw new Error(error.response.data.message || 'Error al obtener estado de suscripción');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al obtener estado de suscripción');
+    }
   }
 };
 

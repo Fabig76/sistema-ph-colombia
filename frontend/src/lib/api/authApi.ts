@@ -11,57 +11,72 @@ const { api } = apiUtils;
  */
 const loginAdminPh = async (telefono: string, password: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/auth/login-admin-ph', {
+      telefono,
+      password
+    });
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    if (telefono === '3001234567' && password === 'password123') {
+    if (response.data.status === 'success') {
+      const { token, admin } = response.data.data;
+      
+      // Guardar token en localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(admin));
+      
       return {
-        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock-token-admin-ph',
-        admin: {
-          id: '1',
-          nombre: 'Juan Pérez',
-          telefono: '3001234567',
-          email: 'juan@example.com',
-          role: 'admin_ph'
-        }
+        token,
+        admin
       };
+    } else {
+      throw new Error(response.data.message || 'Credenciales inválidas');
     }
-    
-    // Simulamos un error de credenciales inválidas
-    throw new Error('Credenciales inválidas');
   } catch (error: any) {
-    throw new Error(error.message || 'Error al iniciar sesión');
+    if (error.response && error.response.status === 401) {
+      throw new Error('Credenciales inválidas');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al iniciar sesión');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al iniciar sesión');
+    }
   }
 };
 
 /**
  * Registro para administradores de PH
  */
-const registerAdminPh = async (data: any) => {
+const registerAdminPh = async (data: {
+  nombre: string;
+  telefono: string;
+  email: string;
+  password: string;
+  nitResolucion: string;
+  fechaResolucion: string;
+}) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/auth/register-admin-ph', data);
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    return {
-      token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock-token-admin-ph-new',
-      admin: {
-        id: '2',
-        nombre: data.nombre,
-        telefono: data.telefono,
-        email: data.email,
-        role: 'admin_ph'
-      }
-    };
+    if (response.data.status === 'success') {
+      return {
+        success: true,
+        message: response.data.message,
+        requiresSmsVerification: true,
+        data: response.data.data
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al registrar administrador');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al registrar usuario');
+    if (error.response && error.response.status === 409) {
+      throw new Error('El teléfono o email ya están registrados');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al registrar administrador');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al registrar administrador');
+    }
   }
 };
 
@@ -70,172 +85,65 @@ const registerAdminPh = async (data: any) => {
  */
 const verifySmsCodeAdminPh = async (telefono: string, code: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/auth/verify-sms-admin-ph', {
+      telefono,
+      codigo: code
+    });
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una verificación exitosa
-    if (code === '123456') {
-      return { success: true };
-    }
-    
-    // Simulamos un error de código inválido
-    throw new Error('Código de verificación inválido');
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al verificar código');
-  }
-};
-
-/**
- * Login para propietarios
- */
-const loginPropietario = async (telefono: string, nit: string) => {
-  try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
-    
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    if (telefono === '3001234567' && (nit === '900123456-7' || nit === '900123456')) {
+    if (response.data.status === 'success') {
+      // Si la verificación es exitosa, el usuario queda activado
       return {
         success: true,
-        inmuebles: [
-          {
-            id: '1',
-            tipo: 'Apartamento',
-            numero: '301',
-            torre: 'A',
-            estado: 'al_dia'
-          },
-          {
-            id: '2',
-            tipo: 'Parqueadero',
-            numero: 'P12',
-            torre: '',
-            estado: 'al_dia'
-          }
-        ]
+        message: response.data.message,
+        token: response.data.data?.token,
+        admin: response.data.data?.admin
       };
+    } else {
+      throw new Error(response.data.message || 'Código de verificación inválido');
     }
-    
-    // Simulamos un error de propietario no encontrado
-    throw new Error('No se encontraron inmuebles asociados a este número de teléfono en la copropiedad indicada');
   } catch (error: any) {
-    throw new Error(error.message || 'Error al iniciar sesión');
+    if (error.response && error.response.status === 400) {
+      throw new Error('Código de verificación inválido o expirado');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al verificar código');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al verificar código');
+    }
   }
 };
 
-/**
- * Verificación de código SMS para propietarios
- */
-const verifySmsCodePropietario = async (telefono: string, code: string, nit: string) => {
-  try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
-    
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una verificación exitosa
-    if (code === '123456') {
-      return {
-        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock-token-propietario',
-        propietario: {
-          id: '1',
-          nombre: 'Carlos Rodríguez',
-          telefono: telefono,
-          role: 'propietario',
-          inmuebles: [
-            {
-              id: '1',
-              tipo: 'Apartamento',
-              numero: '301',
-              torre: 'A',
-              estado: 'al_dia'
-            },
-            {
-              id: '2',
-              tipo: 'Parqueadero',
-              numero: 'P12',
-              torre: '',
-              estado: 'al_dia'
-            }
-          ],
-          copropiedad: {
-            id: '1',
-            nombre: 'Edificio Los Pinos',
-            nit: nit
-          }
-        }
-      };
-    }
-    
-    // Simulamos un error de código inválido
-    throw new Error('Código de verificación inválido');
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al verificar código');
-  }
-};
-
-/**
- * Búsqueda de copropiedad por NIT
- */
-const buscarCopropiedadPorNit = async (nit: string) => {
-  try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
-    
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Formato del NIT para búsqueda
-    const nitFormatted = nit.includes('-') ? nit : `${nit.slice(0, -1)}-${nit.slice(-1)}`;
-    
-    // Simulamos resultados de búsqueda
-    if (nitFormatted === '900123456-7') {
-      return {
-        id: '1',
-        nombre: 'Edificio Los Pinos',
-        nit: '900123456-7',
-        direccion: 'Calle 123 #45-67, Bogotá',
-        administrador: 'Juan Pérez'
-      };
-    } else if (nitFormatted === '901234567-8') {
-      return {
-        id: '2',
-        nombre: 'Conjunto Residencial El Paraíso',
-        nit: '901234567-8',
-        direccion: 'Carrera 78 #90-12, Medellín',
-        administrador: 'María López'
-      };
-    }
-    
-    // Simulamos un error de copropiedad no encontrada
-    throw new Error('No se encontró ninguna copropiedad con el NIT proporcionado');
-  } catch (error: any) {
-    throw new Error(error.message || 'Error al buscar copropiedad');
-  }
-};
+// Funciones de propietarios eliminadas - están ahora en propietariosApi.ts
+// Los propietarios no se registran, solo se validan temporalmente con SMS
 
 /**
  * Recuperación de contraseña para administradores de PH
  */
 const recuperarPasswordAdminPh = async (email: string) => {
   try {
-    // En un entorno real, esto se conectaría con el backend
-    // Por ahora simulamos una respuesta exitosa
+    const response = await api.post('/auth/forgot-password-admin-ph', {
+      email
+    });
     
-    // Simulamos un delay para simular la llamada al backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Simulamos una respuesta exitosa
-    return { success: true, message: 'Se ha enviado un correo con instrucciones para recuperar tu contraseña' };
+    if (response.data.status === 'success') {
+      return {
+        success: true,
+        message: response.data.message || 'Se ha enviado un correo con instrucciones para recuperar tu contraseña'
+      };
+    } else {
+      throw new Error(response.data.message || 'Error al solicitar recuperación de contraseña');
+    }
   } catch (error: any) {
-    throw new Error(error.message || 'Error al solicitar recuperación de contraseña');
+    if (error.response && error.response.status === 404) {
+      throw new Error('No se encontró una cuenta con este correo electrónico');
+    } else if (error.response) {
+      throw new Error(error.response.data.message || 'Error al solicitar recuperación de contraseña');
+    } else if (error.request) {
+      throw new Error('No se pudo conectar con el servidor');
+    } else {
+      throw new Error(error.message || 'Error al solicitar recuperación de contraseña');
+    }
   }
 };
 
@@ -243,8 +151,5 @@ export const authApi = {
   loginAdminPh,
   registerAdminPh,
   verifySmsCodeAdminPh,
-  loginPropietario,
-  verifySmsCodePropietario,
-  buscarCopropiedadPorNit,
   recuperarPasswordAdminPh,
 };

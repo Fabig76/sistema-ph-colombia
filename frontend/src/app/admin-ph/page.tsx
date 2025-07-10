@@ -14,7 +14,9 @@ import {
   Mail,
   Building2,
   LogIn,
-  UserPlus
+  UserPlus,
+  FileText,
+  Calendar
 } from 'lucide-react'
 import { authApi, apiUtils } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -32,6 +34,8 @@ interface RegisterForm {
   telefono: string
   email: string
   password: string
+  nitResolucion: string
+  fechaResolucion: string
 }
 
 export default function AdminPHPage() {
@@ -49,7 +53,9 @@ export default function AdminPHPage() {
     nombre: '',
     telefono: '',
     email: '',
-    password: ''
+    password: '',
+    nitResolucion: '',
+    fechaResolucion: ''
   })
 
   // Verificar si ya está autenticado
@@ -65,13 +71,13 @@ export default function AdminPHPage() {
     setIsLoading(true)
 
     try {
-      const response = await authApi.login(loginForm)
+      const response = await authApi.loginAdminPh(loginForm.telefono, loginForm.password)
       
       // Guardar token y datos del usuario
       apiUtils.saveAuthToken(response.token)
-      apiUtils.saveUserData(response.administrador)
+      apiUtils.saveUserData(response.admin)
       
-      toast.success(`¡Bienvenido, ${response.administrador.nombre}!`)
+      toast.success(`¡Bienvenido, ${response.admin.nombre}!`)
       
       // Redirigir al dashboard
       router.push('/admin-ph/dashboard')
@@ -90,16 +96,17 @@ export default function AdminPHPage() {
     setIsLoading(true)
 
     try {
-      const response = await authApi.register(registerForm)
+      const response = await authApi.registerAdminPh(registerForm)
       
-      // Guardar token y datos del usuario
-      apiUtils.saveAuthToken(response.token)
-      apiUtils.saveUserData(response.administrador)
-      
-      toast.success(`¡Registro exitoso! Bienvenido, ${response.administrador.nombre}`)
-      
-      // Redirigir al dashboard
-      router.push('/admin-ph/dashboard')
+      if (response.requiresSmsVerification) {
+        toast.success(response.message || 'Registro exitoso. Revisa tu teléfono para el código de verificación.')
+        // Redirigir a página de verificación SMS
+        router.push(`/admin-ph/verificar-sms?telefono=${encodeURIComponent(registerForm.telefono)}`)
+      } else {
+        toast.success('Registro exitoso')
+        // Redirigir al dashboard
+        router.push('/admin-ph/dashboard')
+      }
       
     } catch (error: any) {
       console.error('Error en registro:', error)
@@ -293,6 +300,41 @@ export default function AdminPHPage() {
                     placeholder="correo@ejemplo.com"
                     value={registerForm.email}
                     onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Campo de NIT de resolución */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Resolución de Nombramiento
+                </label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Resolución de la alcaldía"
+                    value={registerForm.nitResolucion}
+                    onChange={(e) => setRegisterForm(prev => ({ ...prev, nitResolucion: e.target.value }))}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Campo de fecha de resolución */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fecha de la Resolución
+                </label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="date"
+                    value={registerForm.fechaResolucion}
+                    onChange={(e) => setRegisterForm(prev => ({ ...prev, fechaResolucion: e.target.value }))}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
