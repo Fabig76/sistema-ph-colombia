@@ -38,7 +38,7 @@ const joiTelefonoColombia = Joi.extend((joi) => {
     type: 'telefonoColombia',
     base: joi.string(),
     messages: {
-      'telefonoColombia.invalid': 'El número de teléfono debe tener formato colombiano válido (+573XXXXXXXXX)'
+      'telefonoColombia.invalid': 'El número de teléfono debe tener formato colombiano válido'
     },
     validate(value, helpers) {
       if (!isValidColombianPhone(value)) {
@@ -93,7 +93,10 @@ const registroAdministradorSchema = Joi.object({
   nombre: Joi.string().min(3).max(100).required(),
   email: Joi.string().email().required(),
   telefono: joiTelefonoColombia.telefonoColombia().required(),
-  password: Joi.string().min(8).max(30).pattern(new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$')).message('La contraseña debe contener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial').required()
+  password: Joi.string().min(8).max(30).required().messages({
+    'string.min': 'La contraseña debe tener al menos 8 caracteres',
+    'string.max': 'La contraseña debe tener como máximo 30 caracteres'
+  })
 });
 
 // Validación para login de administrador

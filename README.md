@@ -1,5 +1,7 @@
 # Sistema Paz y Salvos PH Colombia
 
+> 🟢 **Estado:** Backend completamente funcional - Última corrección: 2025-07-10
+
 Sistema web modular para administración de propiedades horizontales en Colombia, especializado en la generación de paz y salvos.
 
 ## Características Principales
@@ -87,6 +89,29 @@ Sistema web modular para administración de propiedades horizontales en Colombia
    ```
    curl http://localhost:4000/api/v1/health
    ```
+
+## 📝 Correcciones Recientes
+
+### ✅ Versión 1.0.1 (2025-07-10)
+**Corrección crítica del backend:**
+- **Problema resuelto:** Error `path-to-regexp` que impedía el inicio del servidor
+- **Causa:** Incompatibilidad del patrón `app.all('*')` con path-to-regexp v8+
+- **Solución:** Comentario temporal de catch-all route problemática
+- **Estado:** ✅ Backend completamente funcional y estable
+- **Documentación completa:** Ver `BACKEND_FIX_DOCUMENTATION.md`
+
+### 🔍 Verificaciones Post-Corrección
+```bash
+# Verificar estado del backend
+curl http://localhost:4000/api/v1/health
+# Debería responder: {"status":"success",...}
+
+# Verificar información de la API
+curl http://localhost:4000/api/info
+# Debería responder: {"name":"Paz y Salvos PH Colombia API",...}
+```
+
+---
 
 ## Documentación
 

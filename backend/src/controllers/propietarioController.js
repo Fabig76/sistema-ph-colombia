@@ -98,8 +98,9 @@ const solicitarCodigoVerificacion = async (req, res) => {
     }
     
     // Verificar que el propietario existe en la hoja de Google Sheets
-    const propietario = await googleSheetsService.buscarPropietarioPorIdentificacion(
+    const propietario = await googleSheetsService.buscarPropiedadesPorIdentificacion(
       copropiedad.hojaGoogleSheetsId,
+      nit,
       identificacion
     );
     
@@ -198,8 +199,9 @@ const consultarInmuebles = async (req, res) => {
     }
     
     // Consultar inmuebles del propietario
-    const resultado = await googleSheetsService.buscarInmueblesPorIdentificacion(
+    const resultado = await googleSheetsService.buscarPropiedadesPorIdentificacion(
       copropiedad.hojaGoogleSheetsId,
+      nit,
       identificacion
     );
     
@@ -449,8 +451,9 @@ const generarPazYSalvo = async (req, res) => {
     }
     
     // Obtener datos del propietario
-    const propietario = await googleSheetsService.buscarPropietarioPorIdentificacion(
+    const propietario = await googleSheetsService.buscarPropiedadesPorIdentificacion(
       copropiedad.hojaGoogleSheetsId,
+      nit,
       decoded.identificacion
     );
     

@@ -6,21 +6,23 @@
 const express = require('express');
 const router = express.Router();
 const propietarioController = require('../controllers/propietarioController');
-const { validate, schemas } = require('../middlewares/validationMiddleware');
+// const propietarioController = require('../controllers/propietarioController.minimal');
+// const { validate, schemas } = require('../middlewares/validationMiddleware');
+const emptyMiddleware = require('../middlewares/validationMiddleware.empty');
 
-// Búsqueda de copropiedad por NIT
-router.get('/copropiedades/:nit', propietarioController.buscarCopropiedad);
+// Solo ruta de prueba
+router.get('/test', (req, res) => {
+  res.json({ message: 'Test route working' });
+});
 
-// Solicitud de código de verificación
+router.get('/copropiedad/:nit', propietarioController.buscarCopropiedad);
+
 router.post('/solicitar-codigo', propietarioController.solicitarCodigoVerificacion);
 
-// Consulta de inmuebles
-router.post('/consultar-inmuebles', propietarioController.consultarInmuebles);
+router.post('/consultar', propietarioController.consultarInmuebles);
 
-// Verificación de estado de cuenta
 router.post('/verificar-estado', propietarioController.verificarEstadoCuenta);
 
-// Generación de paz y salvo
 router.post('/generar-paz-y-salvo', propietarioController.generarPazYSalvo);
 
 module.exports = router;

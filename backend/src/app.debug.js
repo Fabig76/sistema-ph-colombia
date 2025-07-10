@@ -11,14 +11,17 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const { PrismaClient } = require('@prisma/client');
 // const logger = require('./utils/logger');
 require('dotenv').config();
 
+const prisma = new PrismaClient();
+
 // Importar rutas
-const authRoutes = require('./routes/authRoutes');
-const administradorRoutes = require('./routes/administradorRoutes');
-const propietarioRoutes = require('./routes/propietarioRoutes');
-const adminSistemaRoutes = require('./routes/adminSistemaRoutes');
+// const authRoutes = require('./routes/authRoutes');
+// const administradorRoutes = require('./routes/administradorRoutes');
+// const propietarioRoutes = require('./routes/propietarioRoutes');
+// const adminSistemaRoutes = require('./routes/adminSistemaRoutes');
 
 // Crear la aplicación Express
 const app = express();
@@ -51,28 +54,28 @@ if (!fs.existsSync(tmpDir)) {
 app.use('/tmp', express.static(tmpDir));
 
 // Configuración de rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // Límite de 100 solicitudes por ventana
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: 'error',
-    message: 'Demasiadas solicitudes, por favor intente más tarde'
-  }
-});
+// const apiLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutos
+//   max: 100, // Límite de 100 solicitudes por ventana
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: {
+//     status: 'error',
+//     message: 'Demasiadas solicitudes, por favor intente más tarde'
+//   }
+// });
 
 // Rate limiting más estricto para rutas de autenticación
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // Límite de 10 solicitudes por ventana
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    status: 'error',
-    message: 'Demasiados intentos de autenticación, por favor intente más tarde'
-  }
-});
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutos
+//   max: 10, // Límite de 10 solicitudes por ventana
+//   standardHeaders: true,
+//   legacyHeaders: false,
+//   message: {
+//     status: 'error',
+//     message: 'Demasiados intentos de autenticación, por favor intente más tarde'
+//   }
+// });
 
 // Logging de solicitudes HTTP
 // app.use(morgan('combined', {
@@ -82,16 +85,16 @@ const authLimiter = rateLimit({
 // }));
 
 // Middleware para agregar timestamp a las solicitudes
-app.use((req, res, next) => {
-  req.requestTime = new Date().toISOString();
-  next();
-});
+// app.use((req, res, next) => {
+//   req.requestTime = new Date().toISOString();
+//   next();
+// });
 
 // Rutas principales
-app.use('/api/v1/auth', authLimiter, authRoutes);
-app.use('/api/v1/administradores', apiLimiter, administradorRoutes);
-app.use('/api/v1/propietarios', apiLimiter, propietarioRoutes);
-app.use('/api/v1/admin-sistema', apiLimiter, adminSistemaRoutes);
+// app.use('/api/v1/auth', authLimiter, authRoutes);
+// app.use('/api/v1/administradores', apiLimiter, administradorRoutes);
+// app.use('/api/v1/propietarios', apiLimiter, propietarioRoutes);
+// app.use('/api/v1/admin-sistema', apiLimiter, adminSistemaRoutes);
 
 // Ruta de estado del servidor (Health Check)
 app.get('/api/v1/health', async (req, res) => {
@@ -202,13 +205,12 @@ if (fs.existsSync(path.join(__dirname, '../public/docs'))) {
 }
 
 // Manejo de rutas no encontradas
-// TEMPORALMENTE COMENTADO: app.all('*') causa error con path-to-regexp v8+
-// app.all('*', (req, res) => {
-//   res.status(404).json({
-//     status: 'error',
-//     message: `No se encontró la ruta ${req.originalUrl} en este servidor`
-//   });
-// });
+app.all('*', (req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: `No se encontró la ruta ${req.originalUrl} en este servidor`
+  });
+});
 
 // Middleware de manejo de errores global
 app.use((err, req, res, next) => {
