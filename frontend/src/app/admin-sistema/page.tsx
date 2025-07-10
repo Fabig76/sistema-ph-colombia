@@ -21,7 +21,7 @@ export default function AdminSistemaDashboard() {
     totalPropietarios: 0,
     totalPazYSalvos: 0,
     servidorStatus: 'online',
-    alertas: []
+    alertas: [] as { id: number; mensaje: string; nivel: string }[]
   })
 
   useEffect(() => {
@@ -61,7 +61,12 @@ export default function AdminSistemaDashboard() {
     fetchData()
   }, [])
 
-  const StatCard = ({ title, value, icon: Icon, color }) => (
+  const StatCard = ({ title, value, icon: Icon, color }: {
+    title: string
+    value: number | string
+    icon: React.ComponentType<{ className?: string }>
+    color: string
+  }) => (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center">
         <div className={`rounded-full p-3 ${color}`}>

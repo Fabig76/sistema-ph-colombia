@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Building2, FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { apiUtils } from '@/lib/api'
+import { apiUtils } from '@/lib/api/apiUtils'
 
 interface Inmueble {
   id: string

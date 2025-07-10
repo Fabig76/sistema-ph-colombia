@@ -154,16 +154,30 @@ export const systemApi = {
 // Utility functions
 export const apiUtils = {
   // Guardar token en cookies
-  saveAuthToken: (token: string) => {
-    Cookies.set('auth-token', token, { 
-      expires: 7, // 7 días
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict'
-    });
+  saveAuthToken(token: string) {
+    try {
+      Cookies.set('auth-token', token, {
+        expires: 7, // 7 días
+        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production'
+      });
+    } catch (error) {
+      console.error('Error guardando token:', error);
+    }
+  },
+
+  // Obtener token de cookies
+  getAuthToken(): string | null {
+    try {
+      return Cookies.get('auth-token') || null;
+    } catch (error) {
+      console.error('Error obteniendo token:', error);
+      return null;
+    }
   },
 
   // Guardar datos de usuario
-  saveUserData: (user: Administrador) => {
+  saveUserData(user: any) {
     Cookies.set('user-data', JSON.stringify(user), {
       expires: 7,
       secure: process.env.NODE_ENV === 'production',
@@ -172,7 +186,7 @@ export const apiUtils = {
   },
 
   // Obtener datos de usuario
-  getUserData: (): Administrador | null => {
+  getUserData(): any | null {
     try {
       const userData = Cookies.get('user-data');
       return userData ? JSON.parse(userData) : null;
