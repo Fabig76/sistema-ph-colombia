@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Servicio de la API backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ph-backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-phuser}:${POSTGRES_PASSWORD:-phpass123}@postgres:5432/${POSTGRES_DB:-ph_colombia}?schema=public
+      - REDIS_URL=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET:-tu_clave_super_secreta_aqui_cambiar_en_produccion}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/google-credentials.json
+      - SMS_API_URL=${SMS_API_URL:-https://api.sms.com}
+      - SMS_API_KEY=${SMS_API_KEY:-tu_api_key_aqui}
+      - SMS_SENDER=${SMS_SENDER:-PazySalvosPH}
+      - SMS_EXPIRY_SECONDS=${SMS_EXPIRY_SECONDS:-300}
+      - SMS_MAX_ATTEMPTS=${SMS_MAX_ATTEMPTS:-3}
+      - CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-5000}
+      - CIRCUIT_BREAKER_ERROR_THRESHOLD=${CIRCUIT_BREAKER_ERROR_THRESHOLD:-50}
+      - CIRCUIT_BREAKER_RESET_TIMEOUT=${CIRCUIT_BREAKER_RESET_TIMEOUT:-30000}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS:-15*60*1000}
+      - RATE_LIMIT_MAX=${RATE_LIMIT_MAX:-100}
+      - RATE_LIMIT_SMS_WINDOW_MS=${RATE_LIMIT_SMS_WINDOW_MS:-24*60*60*1000}
+      - RATE_LIMIT_SMS_MAX=${RATE_LIMIT_SMS_MAX:-5}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_TO_DB=${LOG_TO_DB:-true}
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+      - ./google-credentials.json:/app/google-credentials.json:ro
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ph-network
+
+  # Servicio de base de datos PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: ph-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-phuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-phpass123}
+      - POSTGRES_DB=${POSTGRES_DB:-ph_colombia}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - ph-network
+
+  # Servicio de caché Redis
+  redis:
+    image: redis:7-alpine
+    container_name: ph-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    networks:
+      - ph-network
+
+  # Servicio de frontend (cuando esté listo)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: ph-frontend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://backend:4000
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - ph-network
+
+  # Servicio de proxy inverso (opcional para producción)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: ph-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/conf:/etc/nginx/conf.d
+  #     - ./nginx/ssl:/etc/nginx/ssl
+  #     - ./nginx/www:/var/www/html
+  #   depends_on:
+  #     - backend
+  #     - frontend
+  #   networks:
+  #     - ph-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  ph-network:
+    driver: bridge

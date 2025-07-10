@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo para Administrador del Sistema (SuperAdmin)
+model AdminSistema {
+  id             String   @id @default(uuid())
+  nombre         String
+  email          String   @unique
+  telefono       String   @unique
+  password       String
+  activo         Boolean  @default(true)
+  ultimoAcceso   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("admin_sistema")
+}
+
+// Modelo para Administradores de Propiedad Horizontal
+model Administrador {
+  id                String        @id @default(uuid())
+  nombre            String
+  email             String        @unique
+  telefono          String        @unique
+  password          String
+  activo            Boolean       @default(true)
+  ultimoAcceso      DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  copropiedades     Copropiedad[]
+  codigosSMS        CodigoSMS[]
+  intentosFallidos  Int           @default(0)
+  bloqueadoHasta    DateTime?
+  
+  @@map("administradores")
+}
+
+// Modelo para Copropiedades
+model Copropiedad {
+  id                  String        @id @default(uuid())
+  nit                 String        @unique
+  nombre              String
+  administradorId     String
+  administrador       Administrador @relation(fields: [administradorId], references: [id])
+  hojaGoogleSheetsId  String
+  plantillaGoogleDocsId String
+  resolucionNumero    String?
+  resolucionFecha     DateTime?
+  activo              Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  eventos             Evento[]
+  pagos               Pago[]
+  periodoGratis       Boolean       @default(true)
+  periodoGratisHasta  DateTime?
+  
+  @@map("copropiedades")
+}
+
+// Modelo para Códigos SMS
+model CodigoSMS {
+  id              String        @id @default(uuid())
+  telefono        String
+  codigo          String
+  tipo            TipoCodigoSMS
+  administradorId String?
+  administrador   Administrador? @relation(fields: [administradorId], references: [id])
+  usado           Boolean       @default(false)
+  expiradoEn      DateTime
+  intentos        Int           @default(0)
+  createdAt       DateTime      @default(now())
+  
+  @@map("codigos_sms")
+}
+
+// Modelo para Eventos del Sistema
+model Evento {
+  id             String       @id @default(uuid())
+  tipo           TipoEvento
+  descripcion    String
+  copropiedadId  String?
+  copropiedad    Copropiedad? @relation(fields: [copropiedadId], references: [id])
+  metadatos      Json?
+  createdAt      DateTime     @default(now())
+  
+  @@map("eventos")
+}
+
+// Modelo para Pagos
+model Pago {
+  id             String       @id @default(uuid())
+  copropiedadId  String
+  copropiedad    Copropiedad  @relation(fields: [copropiedadId], references: [id])
+  monto          Decimal      @db.Decimal(10, 2)
+  referencia     String       @unique
+  estado         EstadoPago
+  fechaPago      DateTime?
+  metodoPago     String?
+  comprobante    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  @@map("pagos")
+}
+
+// Modelo para Logs del Sistema
+model Log {
+  id          String    @id @default(uuid())
+  nivel       NivelLog
+  mensaje     String
+  origen      String
+  metadatos   Json?
+  timestamp   DateTime  @default(now())
+  
+  @@map("logs")
+}
+
+// Enumeraciones
+enum TipoCodigoSMS {
+  REGISTRO
+  LOGIN
+  RECUPERACION
+  VERIFICACION
+}
+
+enum TipoEvento {
+  REGISTRO_ADMIN
+  LOGIN_ADMIN
+  REGISTRO_COPROPIEDAD
+  GENERACION_PAZ_Y_SALVO
+  PAGO
+  ERROR_SISTEMA
+  CAMBIO_CONFIGURACION
+}
+
+enum EstadoPago {
+  PENDIENTE
+  COMPLETADO
+  FALLIDO
+  CANCELADO
+}
+
+enum NivelLog {
+  INFO
+  WARN
+  ERROR
+  DEBUG
+}

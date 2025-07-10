@@ -1,0 +1,590 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { 
+  Building2, 
+  FileText, 
+  Search, 
+  ArrowRight, 
+  Phone, 
+  ChevronRight, 
+  Loader2, 
+  CheckCircle,
+  AlertCircle,
+  Key,
+  Home,
+  Info,
+  Download
+} from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import toast from 'react-hot-toast'
+import { cn } from '@/lib/utils'
+
+// Esquemas de validación
+const searchSchema = z.object({
+  nit: z.string()
+    .min(9, 'El NIT debe tener al menos 9 caracteres')
+    .max(15, 'El NIT no puede exceder 15 caracteres')
+    .regex(/^\d{1,10}-\d{1}$|^\d{1,10}$/, 'Formato de NIT inválido. Ej: 900123456-7 o 900123456')
+})
+
+const phoneSchema = z.object({
+  telefono: z.string()
+    .min(10, 'El número debe tener 10 dígitos')
+    .max(10, 'El número debe tener 10 dígitos')
+    .regex(/^3\d{9}$/, 'Debe ser un número de celular colombiano válido')
+})
+
+const codeSchema = z.object({
+  codigo: z.string()
+    .length(6, 'El código debe tener 6 dígitos')
+    .regex(/^\d{6}$/, 'El código debe contener solo números')
+})
+
+type SearchFormData = z.infer<typeof searchSchema>
+type PhoneFormData = z.infer<typeof phoneSchema>
+type CodeFormData = z.infer<typeof codeSchema>
+
+// Pasos del flujo de propietarios
+type Step = 'search' | 'phone' | 'verify' | 'results'
+
+// Interfaz para copropiedad
+interface Copropiedad {
+  id: string | number
+  nombre: string
+  nit: string
+  direccion?: string
+  administrador?: string
+  estado: 'activo' | 'inactivo'
+}
+
+// Interfaz para propiedad
+interface Propiedad {
+  id: string | number
+  tipo: string
+  identificacion: string
+  direccion: string
+  estado: 'al_dia' | 'pendiente'
+}
+
+export default function PropietariosHome() {
+  // Estados para controlar el flujo de la aplicación
+  const [currentStep, setCurrentStep] = useState<Step>('search')
+  const [loading, setLoading] = useState(false)
+  const [searchResults, setSearchResults] = useState<Copropiedad[]>([])
+  const [selectedCopropiedad, setSelectedCopropiedad] = useState<Copropiedad | null>(null)
+  const [verificationCode, setVerificationCode] = useState('')
+  const [verificationSent, setVerificationSent] = useState(false)
+  const [userProperties, setUserProperties] = useState<Propiedad[]>([])
+
+  // Formularios con React Hook Form
+  const { 
+    register: registerSearch, 
+    handleSubmit: handleSubmitSearch, 
+    formState: { errors: searchErrors } 
+  } = useForm<SearchFormData>({
+    resolver: zodResolver(searchSchema)
+  })
+  
+  const { 
+    register: registerPhone, 
+    handleSubmit: handleSubmitPhone, 
+    formState: { errors: phoneErrors } 
+  } = useForm<PhoneFormData>({
+    resolver: zodResolver(phoneSchema)
+  })
+  
+  const { 
+    register: registerCode, 
+    handleSubmit: handleSubmitCode, 
+    formState: { errors: codeErrors } 
+  } = useForm<CodeFormData>({
+    resolver: zodResolver(codeSchema)
+  })
+  
+  // Manejar búsqueda de copropiedad
+  const onSearchSubmit = async (data: SearchFormData) => {
+    try {
+      setLoading(true)
+      
+      // Simular búsqueda en un entorno real
+      // Esto se conectaría con el backend para buscar la copropiedad
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      // Formato del NIT para búsqueda
+      const nitFormatted = data.nit.includes('-') ? data.nit : `${data.nit.slice(0, -1)}-${data.nit.slice(-1)}`
+      
+      // Simulamos resultados de búsqueda
+      if (nitFormatted === '900123456-7') {
+        setSearchResults([
+          {
+            id: 1,
+            nombre: 'Edificio Los Pinos',
+            nit: '900123456-7',
+            direccion: 'Calle 123 #45-67, Bogotá',
+            administrador: 'Juan Pérez',
+            estado: 'activo'
+          }
+        ])
+      } else if (nitFormatted === '901234567-8') {
+        setSearchResults([
+          {
+            id: 2,
+            nombre: 'Conjunto Residencial El Paraíso',
+            nit: '901234567-8',
+            direccion: 'Carrera 78 #90-12, Medellín',
+            administrador: 'María López',
+            estado: 'activo'
+          }
+        ])
+      } else if (nitFormatted === '902345678-9') {
+        setSearchResults([
+          {
+            id: 3,
+            nombre: 'Torres del Norte',
+            nit: '902345678-9',
+            direccion: 'Avenida 45 #23-67, Cali',
+            administrador: 'Carlos Rodríguez',
+            estado: 'inactivo'
+          }
+        ])
+      } else {
+        setSearchResults([])
+      }
+    } catch (err) {
+      console.error('Error al buscar copropiedad:', err)
+      toast.error('Error al buscar la copropiedad')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Seleccionar una copropiedad y avanzar al siguiente paso
+  const selectCopropiedad = (copropiedad: Copropiedad) => {
+    if (copropiedad.estado === 'inactivo') {
+      toast.error('Esta copropiedad está inactiva. Contacte al administrador.')
+      return
+    }
+    
+    setSelectedCopropiedad(copropiedad)
+    setCurrentStep('phone')
+  }
+  
+  // Enviar código de verificación al teléfono
+  const onPhoneSubmit = async (data: PhoneFormData) => {
+    try {
+      setLoading(true)
+      
+      // Simular envío de SMS en un entorno real
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      
+      // Código simulado
+      setVerificationCode('123456')
+      setVerificationSent(true)
+      setCurrentStep('verify')
+      toast.success('Código enviado a tu celular')
+    } catch (err) {
+      console.error('Error al enviar código:', err)
+      toast.error('Error al enviar el código de verificación')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Verificar código SMS
+  const onCodeSubmit = async (data: CodeFormData) => {
+    try {
+      setLoading(true)
+      
+      // Simular verificación en un entorno real
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      // Verificación simulada
+      if (data.codigo === '123456' || data.codigo === verificationCode) {
+        // Simulamos propiedades encontradas
+        setUserProperties([
+          {
+            id: 1,
+            tipo: 'Apartamento',
+            identificacion: '101',
+            direccion: 'Edificio Los Pinos - Apto 101',
+            estado: 'al_dia'
+          },
+          {
+            id: 2,
+            tipo: 'Parqueadero',
+            identificacion: 'P-15',
+            direccion: 'Edificio Los Pinos - Parqueadero P-15',
+            estado: 'al_dia'
+          }
+        ])
+        setCurrentStep('results')
+        toast.success('Verificación exitosa')
+      } else {
+        toast.error('Código incorrecto. Intenta nuevamente.')
+      }
+    } catch (err) {
+      console.error('Error al verificar código:', err)
+      toast.error('Error al verificar el código')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 shadow-md">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Building2 className="h-6 w-6" />
+            <h1 className="text-xl font-bold">Paz y Salvos PH</h1>
+          </div>
+          <nav>
+            <ul className="flex space-x-4">
+              <li>
+                <Link href="/propietarios/login" className="hover:underline flex items-center">
+                  <span>Iniciar sesión</span>
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        </div>
+      </header>
+
+      {/* Contenido principal */}
+      <main className="container mx-auto py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold text-green-700 mb-6 flex items-center">
+              <FileText className="mr-2" />
+              Consulta y descarga tu paz y salvo
+            </h2>
+            
+            {/* Pasos del proceso */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`flex-1 text-center ${currentStep === 'search' ? 'text-green-600 font-medium' : ''}`}>
+                  <div className={`rounded-full w-8 h-8 mx-auto mb-1 flex items-center justify-center ${currentStep === 'search' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">Buscar</span>
+                </div>
+                <div className="w-16 h-[2px] bg-gray-200" />
+                <div className={`flex-1 text-center ${currentStep === 'phone' ? 'text-green-600 font-medium' : ''}`}>
+                  <div className={`rounded-full w-8 h-8 mx-auto mb-1 flex items-center justify-center ${currentStep === 'phone' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">Teléfono</span>
+                </div>
+                <div className="w-16 h-[2px] bg-gray-200" />
+                <div className={`flex-1 text-center ${currentStep === 'verify' ? 'text-green-600 font-medium' : ''}`}>
+                  <div className={`rounded-full w-8 h-8 mx-auto mb-1 flex items-center justify-center ${currentStep === 'verify' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    <Key className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">Verificar</span>
+                </div>
+                <div className="w-16 h-[2px] bg-gray-200" />
+                <div className={`flex-1 text-center ${currentStep === 'results' ? 'text-green-600 font-medium' : ''}`}>
+                  <div className={`rounded-full w-8 h-8 mx-auto mb-1 flex items-center justify-center ${currentStep === 'results' ? 'bg-green-600 text-white' : 'bg-gray-200'}`}>
+                    <Home className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">Resultados</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Paso 1: Búsqueda de copropiedad */}
+            {currentStep === 'search' && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h3 className="text-xl font-semibold mb-4">Busca tu copropiedad</h3>
+                <p className="text-gray-600 mb-6">
+                  Ingresa el NIT de tu copropiedad para consultar tu estado de cuenta y descargar tu paz y salvo.
+                </p>
+                
+                <form onSubmit={handleSubmitSearch(onSearchSubmit)} className="mb-6">
+                  <div className="mb-4">
+                    <label htmlFor="nit" className="block text-sm font-medium text-gray-700 mb-1">
+                      NIT de la copropiedad
+                    </label>
+                    <div className="relative">
+                      <input
+                        {...registerSearch('nit')}
+                        id="nit"
+                        type="text"
+                        placeholder="Ej: 900123456-7"
+                        className={cn(
+                          "w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500",
+                          searchErrors.nit ? "border-red-500" : "border-gray-300"
+                        )}
+                        disabled={loading}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        {loading ? (
+                          <Loader2 className="h-5 w-5 text-gray-400 animate-spin" />
+                        ) : (
+                          <Search className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                    {searchErrors.nit && (
+                      <p className="mt-1 text-sm text-red-600">{searchErrors.nit.message}</p>
+                    )}
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium flex items-center justify-center transition-colors"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                        Buscando...
+                      </>
+                    ) : (
+                      <>
+                        Buscar
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+                
+                {/* Resultados de búsqueda */}
+                {searchResults.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-medium mb-3">Resultados encontrados:</h4>
+                    <div className="space-y-3">
+                      {searchResults.map((copropiedad) => (
+                        <div 
+                          key={copropiedad.id} 
+                          className={cn(
+                            "border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer",
+                            copropiedad.estado === 'inactivo' ? "border-red-200 bg-red-50" : "border-gray-200"
+                          )}
+                          onClick={() => selectCopropiedad(copropiedad)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-medium">{copropiedad.nombre}</h5>
+                              <p className="text-sm text-gray-600">NIT: {copropiedad.nit}</p>
+                              {copropiedad.direccion && (
+                                <p className="text-sm text-gray-600">{copropiedad.direccion}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center">
+                              {copropiedad.estado === 'activo' ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Activo
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Inactivo
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {copropiedad.administrador && (
+                            <p className="text-sm text-gray-500 mt-1">Administrador: {copropiedad.administrador}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {searchResults.length === 0 && !loading && (
+                  <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-md flex items-start">
+                    <Info className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">No se encontraron resultados</h4>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Verifica que el NIT ingresado sea correcto o contacta al administrador de tu copropiedad.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+            
+            {/* Paso 2: Ingreso de teléfono */}
+            {currentStep === 'phone' && selectedCopropiedad && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h3 className="text-xl font-semibold mb-4">Verifica tu identidad</h3>
+                <p className="text-gray-600 mb-6">
+                  Para continuar con la consulta en <strong>{selectedCopropiedad.nombre}</strong>, necesitamos verificar tu identidad.
+                  Ingresa tu número de teléfono celular para recibir un código de verificación.
+                </p>
+                
+                <form onSubmit={handleSubmitPhone(onPhoneSubmit)} className="mb-6">
+                  <div className="mb-4">
+                    <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">
+                      Número de celular
+                    </label>
+                    <div className="relative">
+                      <input
+                        {...registerPhone('telefono')}
+                        id="telefono"
+                        type="tel"
+                        placeholder="Ej: 3001234567"
+                        className={cn(
+                          "w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500",
+                          phoneErrors.telefono ? "border-red-500" : "border-gray-300"
+                        )}
+                        disabled={loading}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <Phone className="h-5 w-5 text-gray-400" />
+                      </div>
+                    </div>
+                    {phoneErrors.telefono && (
+                      <p className="mt-1 text-sm text-red-600">{phoneErrors.telefono.message}</p>
+                    )}
+                    <p className="mt-2 text-xs text-gray-500">
+                      Solo números celulares colombianos (10 dígitos comenzando con 3).
+                    </p>
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep('search')}
+                      disabled={loading}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-md font-medium transition-colors"
+                    >
+                      Volver
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium flex items-center justify-center transition-colors"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                          Enviando...
+                        </>
+                      ) : (
+                        <>
+                          Enviar código
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+                
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex items-start">
+                    <Info className="h-5 w-5 text-blue-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-800">Información importante</h4>
+                      <p className="text-sm text-blue-700 mt-1">
+                        El número de teléfono debe estar registrado en la base de datos de la copropiedad.
+                        Si tienes problemas, contacta al administrador de tu copropiedad.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Paso 3: Verificación de código */}
+            {currentStep === 'verify' && verificationSent && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h3 className="text-xl font-semibold mb-4">Ingresa el código de verificación</h3>
+                <p className="text-gray-600 mb-6">
+                  Hemos enviado un código de 6 dígitos a tu número de teléfono.
+                  Ingrésalo a continuación para continuar.
+                </p>
+                
+                <form onSubmit={handleSubmitCode(onCodeSubmit)} className="mb-6">
+                  <div className="mb-4">
+                    <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 mb-1">
+                      Código de verificación
+                    </label>
+                    <div className="relative">
+                      <input
+                        {...registerCode('codigo')}
+                        id="codigo"
+                        type="text"
+                        placeholder="Ingresa el código de 6 dígitos"
+                        className={cn(
+                          "w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500",
+                          codeErrors.codigo ? "border-red-500" : "border-gray-300"
+                        )}
+                        disabled={loading}
+                        maxLength={6}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <Key className="h-5 w-5 text-gray-400" />
+                      </div>
+                    </div>
+                    {codeErrors.codigo && (
+                      <p className="mt-1 text-sm text-red-600">{codeErrors.codigo.message}</p>
+                    )}
+                  </div>
+                  
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep('phone')}
+                      disabled={loading}
+                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-md font-medium transition-colors"
+                    >
+                      Volver
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md font-medium flex items-center justify-center transition-colors"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                          Verificando...
+                        </>
+                      ) : (
+                        <>
+                          Verificar
+                          <ArrowRight className="ml-2 h-5 w-5" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+                
+                <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
+                  <div className="flex items-start">
+                    <Info className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-amber-800">Nota</h4>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Si no recibiste el código, verifica que el número ingresado sea correcto y vuelve a intentarlo.
+                        Para esta demo, puedes usar el código <strong>123456</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
