@@ -12,6 +12,7 @@ const { verifyToken } = require('../middlewares/authMiddleware');
 // Registro y verificación de administradores
 router.post('/registro', validate(schemas.registroAdministrador), authController.registrarAdministrador);
 router.post('/verificar', validate(schemas.verificacionSms), authController.verificarAdministrador);
+router.post('/reenviar-codigo', validate(schemas.solicitudSms), authController.reenviarCodigo);
 
 // Login y verificación de dos factores
 router.post('/login', validate(schemas.loginAdministrador), authController.loginAdministrador);

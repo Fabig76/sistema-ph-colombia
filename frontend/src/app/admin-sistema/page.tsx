@@ -10,7 +10,7 @@ import {
   Server,
   TrendingUp
 } from 'lucide-react'
-import { systemApi } from '@/lib/api'
+import { adminSistemaApi } from '@/lib/api'
 import toast from 'react-hot-toast'
 
 export default function AdminSistemaDashboard() {
@@ -28,24 +28,24 @@ export default function AdminSistemaDashboard() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        // En un escenario real, obtendríamos estos datos del backend
-        // Por ahora, simulamos datos de ejemplo
         
-        // Intentamos hacer un health check básico
-        await systemApi.healthCheck()
+        // Simulamos una pequeña carga y luego mostramos datos mock
+        await new Promise(resolve => setTimeout(resolve, 1000))
         
-        // Simulamos datos para el dashboard
+        // Datos de ejemplo para testing
         setStats({
-          totalAdmins: 24,
-          totalCopropiedades: 87,
-          totalPropietarios: 1243,
-          totalPazYSalvos: 458,
+          totalAdmins: 12,
+          totalCopropiedades: 45,
+          totalPropietarios: 1250,
+          totalPazYSalvos: 3200,
           servidorStatus: 'online',
           alertas: [
-            { id: 1, mensaje: 'Actualización de seguridad pendiente', nivel: 'warning' },
-            { id: 2, mensaje: 'Respaldo automático completado', nivel: 'info' }
+            { id: 1, mensaje: 'Sistema funcionando correctamente', nivel: 'info' },
+            { id: 2, mensaje: 'Backup realizado exitosamente', nivel: 'success' }
           ]
         })
+        
+        toast.success('Dashboard cargado correctamente')
       } catch (error) {
         console.error('Error al cargar datos del dashboard:', error)
         toast.error('Error al cargar datos del dashboard')

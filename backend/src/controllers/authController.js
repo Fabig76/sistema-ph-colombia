@@ -8,7 +8,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
 const logger = require('../utils/logger');
-const smsService = require('../services/smsService');
+// const smsService = require('../services/smsService'); // Reemplazado por híbrido
+const SMSHybridService = require('../services/smsHybridService');
+const smsService = new SMSHybridService(); // Instancia del servicio híbrido
 const { generateToken, generateRefreshToken } = require('../middlewares/authMiddleware');
 const cacheService = require('../services/cacheService');
 require('dotenv').config();
@@ -23,41 +25,63 @@ const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS) || 10;
  */
 const registrarAdministrador = async (req, res) => {
   try {
+    console.log('📝 Iniciando registro temporal:', req.body);
     const { nombre, email, telefono, password } = req.body;
     
-    // Verificar si ya existe un administrador con ese teléfono o email
-    const existente = await prisma.administrador.findFirst({
+    // Normalizar teléfono primero
+    const telefonoNormalizado = smsService.normalizarTelefono(telefono);
+    
+    // Verificar si ya existe un administrador CONFIRMADO con ese teléfono o email
+    const existenteConfirmado = await prisma.administrador.findFirst({
       where: {
         OR: [
-          { telefono },
+          { telefono: telefonoNormalizado },
           { email }
         ]
       }
     });
     
-    if (existente) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Ya existe un administrador con ese teléfono o email'
-      });
+    if (existenteConfirmado) {
+      if (existenteConfirmado.telefono === telefonoNormalizado) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Ya existe un administrador registrado con este número de teléfono',
+          campo: 'telefono'
+        });
+      }
+      if (existenteConfirmado.email === email) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Ya existe un administrador registrado con este correo electrónico',
+          campo: 'email'
+        });
+      }
     }
-    
-    // Normalizar teléfono
-    const telefonoNormalizado = smsService.normalizarTelefono(telefono);
+
+    // Verificar si ya existe un registro temporal (y eliminarlo si existe)
+    await prisma.registroTemporal.deleteMany({
+      where: {
+        OR: [
+          { telefono: telefonoNormalizado },
+          { email }
+        ]
+      }
+    });
     
     // Hash de contraseña
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     
-    // Crear administrador (inicialmente inactivo hasta verificación)
-    const administrador = await prisma.administrador.create({
+    // Crear registro TEMPORAL (15 minutos de expiración)
+    const expiracion = new Date();
+    expiracion.setMinutes(expiracion.getMinutes() + 15);
+    
+    const registroTemporal = await prisma.registroTemporal.create({
       data: {
         nombre,
         email,
         telefono: telefonoNormalizado,
         password: hashedPassword,
-        activo: false,
-        verificado: false,
-        fechaRegistro: new Date()
+        expiradoEn: expiracion
       }
     });
     
@@ -65,30 +89,37 @@ const registrarAdministrador = async (req, res) => {
     const resultadoSMS = await smsService.enviarCodigoVerificacion(
       telefonoNormalizado,
       'REGISTRO',
-      administrador.id
+      registroTemporal.id // Usar ID del registro temporal
     );
     
     if (!resultadoSMS.success) {
-      logger.error(`Error al enviar SMS de verificación: ${resultadoSMS.message}`, 'auth', { adminId: administrador.id });
+      logger.error(`Error al enviar SMS de verificación: ${resultadoSMS.message}`, 'auth', { tempId: registroTemporal.id });
+      // Si falla el SMS, eliminar registro temporal
+      await prisma.registroTemporal.delete({ where: { id: registroTemporal.id } });
+      return res.status(500).json({
+        status: 'error',
+        message: 'Error al enviar código de verificación. Intente nuevamente.'
+      });
     }
     
-    // Responder sin datos sensibles
-    res.status(201).json({
-      status: 'success',
-      message: 'Administrador registrado. Se ha enviado un código de verificación al teléfono proporcionado.',
+    // Responder SIN crear el administrador real aún
+    res.status(200).json({
+      status: 'success', 
+      message: 'Se ha enviado un código de verificación al teléfono proporcionado. Verifique para completar el registro.',
       data: {
-        id: administrador.id,
-        nombre: administrador.nombre,
-        telefono: administrador.telefono,
-        email: administrador.email,
-        verificado: administrador.verificado
+        tempId: registroTemporal.id,
+        telefono: telefonoNormalizado,
+        requiresSmsVerification: true
       }
     });
   } catch (error) {
+    console.error('❌ Error al registrar administrador:', error.message);
+    console.error('Stack:', error.stack);
     logger.error(`Error al registrar administrador: ${error.message}`, 'auth', { error });
     res.status(500).json({
       status: 'error',
-      message: 'Error al registrar administrador'
+      message: 'Error al registrar administrador',
+      debug: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
@@ -105,15 +136,20 @@ const verificarAdministrador = async (req, res) => {
     // Normalizar teléfono
     const telefonoNormalizado = smsService.normalizarTelefono(telefono);
     
-    // Buscar administrador
-    const administrador = await prisma.administrador.findFirst({
-      where: { telefono: telefonoNormalizado }
+    // Buscar registro temporal
+    const registroTemporal = await prisma.registroTemporal.findFirst({
+      where: { 
+        telefono: telefonoNormalizado,
+        expiradoEn: {
+          gt: new Date() // No expirado
+        }
+      }
     });
     
-    if (!administrador) {
+    if (!registroTemporal) {
       return res.status(404).json({
         status: 'error',
-        message: 'Administrador no encontrado'
+        message: 'Registro temporal no encontrado o expirado. Debe registrarse nuevamente.'
       });
     }
     
@@ -131,19 +167,27 @@ const verificarAdministrador = async (req, res) => {
       });
     }
     
-    // Actualizar administrador a verificado y activo
-    const administradorActualizado = await prisma.administrador.update({
-      where: { id: administrador.id },
+    // AHORA SÍ crear el administrador real
+    const administrador = await prisma.administrador.create({
       data: {
+        nombre: registroTemporal.nombre,
+        email: registroTemporal.email,
+        telefono: registroTemporal.telefono,
+        password: registroTemporal.password,
         verificado: true,
         activo: true,
-        fechaVerificacion: new Date()
+        fechaRegistro: new Date()
       }
+    });
+    
+    // Eliminar registro temporal
+    await prisma.registroTemporal.delete({
+      where: { id: registroTemporal.id }
     });
     
     // Generar tokens
     const payload = {
-      id: administradorActualizado.id,
+      id: administrador.id,
       role: 'administrador'
     };
     
@@ -152,22 +196,25 @@ const verificarAdministrador = async (req, res) => {
     
     // Guardar refresh token en caché
     await cacheService.set(
-      `refresh_token:${administradorActualizado.id}`,
+      `refresh_token:${administrador.id}`,
       refreshToken,
       60 * 60 * 24 * 7 // 7 días
     );
     
     res.status(200).json({
       status: 'success',
-      message: 'Administrador verificado correctamente',
+      message: 'Administrador verificado y registrado correctamente',
       data: {
-        id: administradorActualizado.id,
-        nombre: administradorActualizado.nombre,
-        telefono: administradorActualizado.telefono,
-        email: administradorActualizado.email,
-        verificado: administradorActualizado.verificado,
         token,
-        refreshToken
+        refreshToken,
+        admin: {
+          id: administrador.id,
+          nombre: administrador.nombre,
+          telefono: administrador.telefono,
+          email: administrador.email,
+          verificado: administrador.verificado,
+          tipo: 'administrador'
+        }
       }
     });
   } catch (error) {
@@ -175,6 +222,63 @@ const verificarAdministrador = async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Error al verificar administrador'
+    });
+  }
+};
+
+/**
+ * Reenviar código de verificación SMS
+ * @param {Request} req - Objeto de solicitud Express
+ * @param {Response} res - Objeto de respuesta Express
+ */
+const reenviarCodigo = async (req, res) => {
+  try {
+    const { telefono } = req.body;
+    
+    // Normalizar teléfono
+    const telefonoNormalizado = smsService.normalizarTelefono(telefono);
+    
+    // Buscar registro temporal activo
+    const registroTemporal = await prisma.registroTemporal.findFirst({
+      where: {
+        telefono: telefonoNormalizado,
+        expiradoEn: {
+          gt: new Date() // No expirado
+        }
+      }
+    });
+    
+    if (!registroTemporal) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'No hay un registro temporal activo. Debe registrarse nuevamente.'
+      });
+    }
+    
+    // Reenviar código
+    const resultadoSMS = await smsService.enviarCodigoVerificacion(
+      telefonoNormalizado,
+      'REGISTRO',
+      registroTemporal.id
+    );
+    
+    if (!resultadoSMS.success) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Error al reenviar código. Intente nuevamente.'
+      });
+    }
+    
+    res.status(200).json({
+      status: 'success',
+      message: 'Código de verificación reenviado exitosamente.'
+    });
+    
+  } catch (error) {
+    logger.error(`Error al reenviar código: ${error.message}`, 'auth', { error });
+    res.status(500).json({
+      status: 'error',
+      message: 'Error interno del servidor'
     });
   }
 };
@@ -643,6 +747,7 @@ const logout = async (req, res) => {
 module.exports = {
   registrarAdministrador,
   verificarAdministrador,
+  reenviarCodigo,
   loginAdministrador,
   verificarLoginAdministrador,
   solicitarRecuperacionPassword,

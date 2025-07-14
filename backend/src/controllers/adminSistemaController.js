@@ -447,7 +447,7 @@ const getCopropiedad = async (req, res) => {
         ...copropiedad,
         estadisticas: {
           eventos,
-          consultasPropietarios: eventos['CONSULTA_PROPIETARIO'] || 0,
+          consultasPropietarios: eventos['GENERACION_PAZ_Y_SALVO'] || 0,
           pazYSalvosGenerados: eventos['GENERACION_PAZ_Y_SALVO'] || 0
         },
         pagosRecientes: pagos

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Copropiedad, Property } from '@/types/copropiedad'
+import { propietariosApi } from '@/lib/api/propietariosApi'
 import toast from 'react-hot-toast'
 
 interface CopropiedadState {
@@ -15,76 +16,11 @@ interface CopropiedadState {
 interface CopropiedadActions {
   searchByNit: (nit: string) => Promise<{ success: boolean; data?: Copropiedad[] }>
   selectCopropiedad: (copropiedad: Copropiedad) => void
-  searchPropertiesByPhone: (telefono: string, copropiedadId: string) => Promise<{ success: boolean; data?: Property[] }>
-  generatePazYSalvo: (propertyId: string) => Promise<{ success: boolean; url?: string }>
+  searchPropertiesByPhone: (telefono: string, copropiedadId: string, cedula: string, codigoVerificacion: string) => Promise<{ success: boolean; data?: Property[] }>
+  generatePazYSalvo: (datosGeneracion: { cedula: string; telefono: string; codigoVerificacion: string; nitCopropiedad: string; inmuebleId: string }) => Promise<{ success: boolean; url?: string }>
   clearResults: () => void
   clearError: () => void
 }
-
-// Mock data para desarrollo
-const mockCopropiedades: Copropiedad[] = [
-  {
-    id: '1',
-    nit: '900123456',
-    nombre: 'Conjunto Residencial Los Pinos',
-    direccion: 'Calle 123 #45-67, Bogotá',
-    estado: 'activa',
-    fechaCreacion: '2023-01-15',
-    estadoPago: 'al_dia',
-    administrador: {
-      id: '1',
-      nombre: 'María García',
-      email: 'maria@lospinos.com',
-      telefono: '3001234567'
-    }
-  },
-  {
-    id: '2',
-    nit: '900654321',
-    nombre: 'Edificio Torre Central',
-    direccion: 'Carrera 15 #89-12, Medellín',
-    estado: 'activa',
-    fechaCreacion: '2023-03-20',
-    estadoPago: 'al_dia'
-  }
-]
-
-const mockProperties: Property[] = [
-  {
-    id: '1',
-    tipo: 'apartamento',
-    numero: '501',
-    identificacion: 'Apto 501',
-    direccion: 'Torre A - Piso 5',
-    propietario: {
-      nombre: 'Juan Pérez',
-      telefono: '3001234567',
-      email: 'juan@email.com'
-    },
-    estado: 'al_dia',
-    valorCuota: 450000,
-    cuotasPendientes: 0,
-    ultimoPago: '2024-01-15',
-    saldoPendiente: 0
-  },
-  {
-    id: '2',
-    tipo: 'parqueadero',
-    numero: 'P-15',
-    identificacion: 'P-15',
-    direccion: 'Sótano 1',
-    propietario: {
-      nombre: 'Juan Pérez',
-      telefono: '3001234567',
-      email: 'juan@email.com'
-    },
-    estado: 'al_dia',
-    valorCuota: 80000,
-    cuotasPendientes: 0,
-    ultimoPago: '2024-01-15',
-    saldoPendiente: 0
-  }
-]
 
 export const useCopropiedad = (): CopropiedadState & CopropiedadActions => {
   const [state, setState] = useState<CopropiedadState>({
@@ -99,14 +35,8 @@ export const useCopropiedad = (): CopropiedadState & CopropiedadActions => {
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Simular llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1500))
-
-      // Buscar copropiedades que coincidan con el NIT
-      const results = mockCopropiedades.filter(copropiedad => 
-        copropiedad.nit.includes(nit) || 
-        copropiedad.nombre.toLowerCase().includes(nit.toLowerCase())
-      )
+      // Llamada real a API
+      const results = await propietariosApi.buscarCopropiedad(nit)
 
       setState(prev => ({
         ...prev,
@@ -142,39 +72,34 @@ export const useCopropiedad = (): CopropiedadState & CopropiedadActions => {
     toast.success(`Copropiedad seleccionada: ${copropiedad.nombre}`)
   }, [])
 
-  const searchPropertiesByPhone = useCallback(async (telefono: string, copropiedadId: string) => {
+  const searchPropertiesByPhone = useCallback(async (telefono: string, copropiedadId: string, cedula: string, codigoVerificacion: string) => {
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Simular llamada a Google Sheets API
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Validar teléfono colombiano
-      if (!/^3\d{9}$/.test(telefono)) {
-        throw new Error('Formato de teléfono inválido')
-      }
-
-      // Simular búsqueda de propiedades
-      const userProperties = mockProperties.filter(property => 
-        property.propietario.telefono === telefono
-      )
+      // Llamada real a API con todos los datos requeridos
+      const inmuebles = await propietariosApi.getInmuebles({
+        cedula,
+        telefono,
+        codigoVerificacion,
+        nitCopropiedad: state.selectedCopropiedad?.nit || ''
+      })
 
       setState(prev => ({
         ...prev,
-        properties: userProperties,
+        properties: inmuebles,
         loading: false
       }))
 
-      if (userProperties.length === 0) {
-        toast.error('No se encontraron inmuebles asociados a este teléfono')
+      if (inmuebles.length === 0) {
+        toast.error('No se encontraron propiedades con esos datos')
         return { success: false }
       }
 
-      toast.success(`Se encontraron ${userProperties.length} inmueble(s)`)
-      return { success: true, data: userProperties }
+      toast.success(`Se encontraron ${inmuebles.length} propiedad(es)`)
+      return { success: true, data: inmuebles }
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error consultando inmuebles'
+      const errorMessage = error instanceof Error ? error.message : 'Error en la consulta'
       setState(prev => ({
         ...prev,
         error: errorMessage,
@@ -183,39 +108,23 @@ export const useCopropiedad = (): CopropiedadState & CopropiedadActions => {
       toast.error(errorMessage)
       return { success: false }
     }
-  }, [])
+  }, [state.selectedCopropiedad])
 
-  const generatePazYSalvo = useCallback(async (propertyId: string) => {
+  const generatePazYSalvo = useCallback(async (datosGeneracion: {
+    cedula: string;
+    telefono: string;
+    codigoVerificacion: string;
+    nitCopropiedad: string;
+    inmuebleId: string;
+  }) => {
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // Simular generación de documento
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      const property = state.properties.find(p => p.id === propertyId)
-      if (!property) {
-        throw new Error('Propiedad no encontrada')
-      }
-
-      if (property.estado !== 'al_dia') {
-        throw new Error('No se puede generar paz y salvo. Hay cuotas pendientes.')
-      }
-
-      // Simular URL de descarga
-      const downloadUrl = `https://docs.google.com/document/d/mock-paz-y-salvo-${propertyId}/export?format=pdf`
-
-      setState(prev => ({ ...prev, loading: false }))
-
-      // Simular descarga
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `paz-y-salvo-${property.identificacion}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      toast.success('Paz y salvo generado correctamente')
-      return { success: true, url: downloadUrl }
+      // Llamada real a API para generar PDF
+      const resultado = await propietariosApi.generarPazYSalvo(datosGeneracion)
+      
+      toast.success('Paz y salvo generado exitosamente')
+      return { success: true, url: resultado.url }
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error generando paz y salvo'
@@ -226,8 +135,10 @@ export const useCopropiedad = (): CopropiedadState & CopropiedadActions => {
       }))
       toast.error(errorMessage)
       return { success: false }
+    } finally {
+      setState(prev => ({ ...prev, loading: false }))
     }
-  }, [state.properties])
+  }, [])
 
   const clearResults = useCallback(() => {
     setState({

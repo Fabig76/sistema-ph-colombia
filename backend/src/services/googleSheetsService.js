@@ -71,12 +71,27 @@ const extractSheetId = (url) => {
 };
 
 /**
- * Valida el formato de una hoja de Google Sheets para uso en el sistema
+ * Extraer ID de Google Docs desde URL
+ */
+const extractDocId = (url) => {
+  try {
+    const match = url.match(/\/document\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+  } catch (error) {
+    logger.error('Error extrayendo ID de Google Docs:', error);
+    return null;
+  }
+};
+
+/**
+ * Valida datos específicos de una copropiedad en Google Sheets
  * @param {string} sheetId - ID de la hoja de Google Sheets
+ * @param {string} expectedNit - NIT esperado de la copropiedad
+ * @param {string} expectedNombre - Nombre esperado de la copropiedad
  * @returns {Promise<{isValid: boolean, message: string, data?: Object}>} - Resultado de validación
  */
-const validateSheetFormat = async (sheetId) => {
-  const cacheKey = `sheet:validate:${sheetId}`;
+const validateCopropiedadData = async (sheetId, expectedNit, expectedNombre) => {
+  const cacheKey = `sheet:validate-data:${sheetId}:${expectedNit}`;
   
   return await cacheService.getOrSet(cacheKey, async () => {
     try {
@@ -85,22 +100,106 @@ const validateSheetFormat = async (sheetId) => {
         const auth = await getAuthClient();
         const sheets = google.sheets({ version: 'v4', auth });
         
-        // Obtener solo los encabezados (primera fila)
+        // Obtener las primeras dos filas (headers + primera fila de datos)
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId: sheetId,
-          range: 'A1:J1' // Primeras 10 columnas de la primera fila
+          range: 'A1:B2' // Columnas A y B, filas 1 y 2
         });
         
         return response.data;
       };
       
-      // Ejecutar a través del circuit breaker
-      const data = await circuitBreaker.execute(
-        'google-sheets-validate',
-        fetchSheetData,
-        [],
-        () => ({ values: [] }) // Fallback en caso de error
-      );
+      // TEMPORAL: Ejecutar directamente sin circuit breaker para debug
+      const data = await fetchSheetData();
+      
+      // const data = await circuitBreaker.execute(
+      //   'google-sheets-validate-data',
+      //   fetchSheetData,
+      //   [],
+      //   () => ({ values: [] }) // Fallback en caso de error
+      // );
+      
+      // Verificar si hay datos suficientes
+      if (!data.values || data.values.length < 2) {
+        return {
+          isValid: false,
+          message: 'La hoja debe tener al menos una fila de datos además de los encabezados'
+        };
+      }
+      
+      // Obtener los datos de la primera fila (índice 1)
+      const dataRow = data.values[1];
+      
+      if (!dataRow || dataRow.length < 2) {
+        return {
+          isValid: false,
+          message: 'La primera fila de datos debe tener al menos NIT y nombre de la copropiedad'
+        };
+      }
+      
+      const nitEnHoja = String(dataRow[0]).trim();
+      const nombreEnHoja = String(dataRow[1]).trim();
+      
+      // Comparar datos
+      if (nitEnHoja !== expectedNit) {
+        return {
+          isValid: false,
+          message: `El NIT en la hoja (${nitEnHoja}) no coincide con el NIT registrado (${expectedNit})`
+        };
+      }
+      
+      if (nombreEnHoja.toUpperCase() !== expectedNombre.toUpperCase()) {
+        return {
+          isValid: false,
+          message: `El nombre en la hoja (${nombreEnHoja}) no coincide con el nombre registrado (${expectedNombre})`
+        };
+      }
+      
+      return {
+        isValid: true,
+        message: 'Los datos de la copropiedad coinciden correctamente',
+        data: {
+          nitEnHoja,
+          nombreEnHoja
+        }
+      };
+    } catch (error) {
+      logger.error(`Error al validar datos de copropiedad: ${error.message}`, 'google-sheets', { sheetId, expectedNit, expectedNombre, error });
+      return {
+        isValid: false,
+        message: 'Error al validar los datos en la hoja de Google Sheets'
+      };
+    }
+  }, CACHE_TTL);
+};
+
+/**
+ * Valida que la hoja de Google Sheets sea accesible
+ * Solo verifica que se pueda leer la hoja, sin validar estructura específica
+ * @param {string} sheetId - ID de la hoja de Google Sheets
+ * @returns {Promise<Object>} - Resultado de la validación
+ */
+const validateSheetFormat = async (sheetId) => {
+  const cacheKey = `sheet:validate-format:${sheetId}`;
+  
+  return await cacheService.getOrSet(cacheKey, async () => {
+    try {
+      // Función para llamar a la API de Google Sheets
+      const fetchSheetData = async () => {
+        const auth = await getAuthClient();
+        const sheets = google.sheets({ version: 'v4', auth });
+        
+        // Solo verificar que la hoja sea accesible leyendo la primera fila
+        const response = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: 'A1:B1' // Solo columnas A y B para validación básica
+        });
+        
+        return response.data;
+      };
+      
+      // TEMPORAL: Ejecutar directamente sin circuit breaker para debug
+      const data = await fetchSheetData();
       
       // Verificar si hay datos
       if (!data.values || data.values.length === 0) {
@@ -110,31 +209,9 @@ const validateSheetFormat = async (sheetId) => {
         };
       }
       
-      // Encabezados requeridos (las primeras columnas deben ser estas, en este orden)
-      const requiredHeaders = [
-        'NIT', 'NOMBRE_COPROPIEDAD', 'TORRE_BLOQUE', 'APTO_CASA', 
-        'IDENTIFICACION', 'NOMBRE_PROPIETARIO', 'TELEFONO', 'EMAIL', 
-        'ESTADO_CUENTA'
-      ];
-      
-      // Verificar encabezados
-      const headers = data.values[0].map(h => h.toUpperCase().trim());
-      
-      // Verificar que todos los encabezados requeridos estén presentes y en orden
-      for (let i = 0; i < requiredHeaders.length; i++) {
-        if (i >= headers.length || headers[i] !== requiredHeaders[i]) {
-          return {
-            isValid: false,
-            message: `La columna ${i + 1} debe ser "${requiredHeaders[i]}", encontrado: "${headers[i] || 'No existe'}"`,
-            data: { headers, requiredHeaders }
-          };
-        }
-      }
-      
       return {
         isValid: true,
-        message: 'Formato de hoja válido',
-        data: { headers }
+        message: 'Hoja accesible correctamente'
       };
     } catch (error) {
       logger.error(`Error al validar formato de hoja: ${error.message}`, 'google-sheets', { sheetId, error });
@@ -166,7 +243,7 @@ const buscarPropiedadesPorIdentificacion = async (sheetId, nit, identificacion) 
         // Obtener todos los datos
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId: sheetId,
-          range: 'A:I' // Todas las columnas relevantes
+          range: 'A:K' // Todas las columnas A-K según estructura real
         });
         
         return response.data;
@@ -180,6 +257,35 @@ const buscarPropiedadesPorIdentificacion = async (sheetId, nit, identificacion) 
         () => ({ values: [] }) // Fallback en caso de error
       );
       
+      // Estructura esperada según especificaciones del proyecto:
+      // A: NIT | B: COPROPIEDAD | C: TELEFONO | D: PROPIETARIO | E: NUMERO | F: TIPO | G: TORRE | H: ESTADO_CUENTA | I: SALDO | J: EMAIL | K: OBSERVACIONES
+      const expectedStructure = [
+        'NIT',           // A
+        'COPROPIEDAD',   // B  
+        'TELEFONO',      // C
+        'PROPIETARIO',   // D
+        'NUMERO',        // E
+        'TIPO',          // F
+        'TORRE',         // G
+        'ESTADO_CUENTA', // H
+        'SALDO',         // I
+        'EMAIL',         // J
+        'OBSERVACIONES'  // K
+      ];
+      
+      // Índices fijos según la estructura
+      const nitIndex = 0;           // Columna A
+      const copropiedadIndex = 1;   // Columna B
+      const telefonoIndex = 2;      // Columna C
+      const propietarioIndex = 3;   // Columna D
+      const numeroIndex = 4;        // Columna E
+      const tipoIndex = 5;          // Columna F
+      const torreIndex = 6;         // Columna G
+      const estadoIndex = 7;        // Columna H
+      const saldoIndex = 8;         // Columna I
+      const emailIndex = 9;         // Columna J
+      const observacionesIndex = 10; // Columna K
+      
       // Verificar si hay datos
       if (!data.values || data.values.length <= 1) {
         return [];
@@ -188,39 +294,36 @@ const buscarPropiedadesPorIdentificacion = async (sheetId, nit, identificacion) 
       // Obtener encabezados
       const headers = data.values[0].map(h => h.toUpperCase().trim());
       
-      // Índices de las columnas relevantes
-      const nitIndex = headers.indexOf('NIT');
-      const nombreCopropiedadIndex = headers.indexOf('NOMBRE_COPROPIEDAD');
-      const torreIndex = headers.indexOf('TORRE_BLOQUE');
-      const aptoIndex = headers.indexOf('APTO_CASA');
-      const idIndex = headers.indexOf('IDENTIFICACION');
-      const nombreIndex = headers.indexOf('NOMBRE_PROPIETARIO');
-      const telefonoIndex = headers.indexOf('TELEFONO');
-      const emailIndex = headers.indexOf('EMAIL');
-      const estadoIndex = headers.indexOf('ESTADO_CUENTA');
+      // Verificar estructura
+      if (!headers.every((h, i) => h === expectedStructure[i])) {
+        logger.error(`Estructura de la hoja no coincide con la esperada: ${headers.join(', ')}`, 'google-sheets', { sheetId });
+        return [];
+      }
       
       // Filtrar filas que coincidan con el NIT y la identificación
       const propiedades = data.values.slice(1) // Saltar encabezados
         .filter(row => {
           // Verificar que la fila tenga suficientes columnas
-          if (row.length <= Math.max(nitIndex, idIndex)) return false;
+          if (row.length <= Math.max(nitIndex, propietarioIndex)) return false;
           
           // Normalizar valores para comparación
           const rowNit = (row[nitIndex] || '').toString().trim();
-          const rowId = (row[idIndex] || '').toString().trim();
+          const rowPropietario = (row[propietarioIndex] || '').toString().trim();
           
-          return rowNit === nit && rowId === identificacion;
+          return rowNit === nit && rowPropietario === identificacion;
         })
         .map(row => ({
           nit: row[nitIndex] || '',
-          nombreCopropiedad: row[nombreCopropiedadIndex] || '',
-          torre: row[torreIndex] || '',
-          apto: row[aptoIndex] || '',
-          identificacion: row[idIndex] || '',
-          nombrePropietario: row[nombreIndex] || '',
+          copropiedad: row[copropiedadIndex] || '',
           telefono: row[telefonoIndex] || '',
+          propietario: row[propietarioIndex] || '',
+          numero: row[numeroIndex] || '',
+          tipo: row[tipoIndex] || '',
+          torre: row[torreIndex] || '',
+          estadoCuenta: (row[estadoIndex] || '').toUpperCase().trim(),
+          saldo: row[saldoIndex] || '',
           email: row[emailIndex] || '',
-          estadoCuenta: (row[estadoIndex] || '').toUpperCase().trim()
+          observaciones: row[observacionesIndex] || ''
         }));
       
       return propiedades;
@@ -252,7 +355,7 @@ const verificarEstadoCuenta = async (sheetId, nit, torre, apto) => {
         // Obtener todos los datos
         const response = await sheets.spreadsheets.values.get({
           spreadsheetId: sheetId,
-          range: 'A:I' // Todas las columnas relevantes
+          range: 'A:K' // Todas las columnas A-K según estructura real
         });
         
         return response.data;
@@ -266,41 +369,33 @@ const verificarEstadoCuenta = async (sheetId, nit, torre, apto) => {
         () => ({ values: [] }) // Fallback en caso de error
       );
       
-      // Verificar si hay datos
-      if (!data.values || data.values.length <= 1) {
-        return { alDia: false, mensaje: 'No se encontraron datos' };
+      const datos = data.values || [];
+      if (datos.length <= 1) {
+        return { alDia: false, mensaje: 'No hay datos en la hoja' };
       }
       
-      // Obtener encabezados
-      const headers = data.values[0].map(h => h.toUpperCase().trim());
+      // Índices fijos según la estructura definida
+      const nitIndex = 0;           // Columna A
+      const numeroIndex = 4;        // Columna E  
+      const torreIndex = 6;         // Columna G
+      const estadoIndex = 7;        // Columna H
       
-      // Índices de las columnas relevantes
-      const nitIndex = headers.indexOf('NIT');
-      const torreIndex = headers.indexOf('TORRE_BLOQUE');
-      const aptoIndex = headers.indexOf('APTO_CASA');
-      const estadoIndex = headers.indexOf('ESTADO_CUENTA');
-      
-      // Buscar la fila que coincida con los criterios
-      const fila = data.values.slice(1) // Saltar encabezados
-        .find(row => {
-          // Verificar que la fila tenga suficientes columnas
-          if (row.length <= Math.max(nitIndex, torreIndex, aptoIndex)) return false;
-          
-          // Normalizar valores para comparación
-          const rowNit = (row[nitIndex] || '').toString().trim();
-          const rowTorre = (row[torreIndex] || '').toString().trim();
-          const rowApto = (row[aptoIndex] || '').toString().trim();
-          
-          return rowNit === nit && rowTorre === torre && rowApto === apto;
-        });
+      // Buscar la fila específica
+      const fila = datos.slice(1).find(row => {
+        const filaNit = (row[nitIndex] || '').toString().trim();
+        const filaTorre = (row[torreIndex] || '').toString().trim();
+        const filaNumero = (row[numeroIndex] || '').toString().trim();
+        
+        return filaNit === nit && filaTorre === torre && filaNumero === apto;
+      });
       
       if (!fila) {
-        return { alDia: false, mensaje: 'Inmueble no encontrado' };
+        return { alDia: false, mensaje: 'No se encontró el inmueble especificado' };
       }
       
       // Verificar estado de cuenta
       const estado = (fila[estadoIndex] || '').toUpperCase().trim();
-      const alDia = estado === 'AL DIA' || estado === 'AL DÍA' || estado === 'PAGADO';
+      const alDia = estado === 'AL DIA' || estado === 'AL_DIA' || estado === 'PAGADO' || estado === 'AL_DIA';
       
       return {
         alDia,
@@ -334,7 +429,9 @@ const invalidarCache = async (sheetId) => {
 
 module.exports = {
   validateSheetFormat,
+  validateCopropiedadData,
   extractSheetId,
+  extractDocId,
   buscarPropiedadesPorIdentificacion,
   verificarEstadoCuenta,
   invalidarCache

@@ -12,7 +12,7 @@ export default function VerificarSMSPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const telefono = searchParams.get('telefono') || ''
-  
+  const tipoVerificacion = searchParams.get('tipo') || 'registro' // 'registro' o 'login'
   const [codigo, setCodigo] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isResending, setIsResending] = useState(false)
@@ -49,12 +49,58 @@ export default function VerificarSMSPage() {
     setIsLoading(true)
 
     try {
-      const response = await authApi.verifySmsCodeAdminPh(telefono, codigo.trim())
-
-      toast.success('Verificación exitosa. ¡Bienvenido!')
+      let response
       
-      // Redirigir al dashboard
-      router.push('/admin-ph/dashboard')
+      // Usar la función correcta según el tipo de verificación
+      if (tipoVerificacion === 'login') {
+        response = await authApi.verifyLoginSmsCode(telefono, codigo.trim())
+      } else {
+        response = await authApi.verifySmsCodeAdminPh(telefono, codigo.trim())
+      }
+
+      // GUARDAR TOKENS Y DATOS DEL ADMINISTRADOR SOLO SI SON VÁLIDOS
+      if (response.data?.token && response.data?.id && response.data?.nombre) {
+        localStorage.setItem('ph_auth_token', response.data.token)
+        
+        // Guardar refreshToken si existe
+        if (response.data.refreshToken) {
+          localStorage.setItem('ph_refresh_token', response.data.refreshToken)
+        }
+        
+        // Guardar datos del admin SOLO si están completos
+        const adminData = {
+          id: response.data.id,
+          nombre: response.data.nombre,
+          telefono: response.data.telefono,
+          email: response.data.email,
+          tipo: 'administrador',
+          copropiedades: response.data.copropiedades || []
+        }
+        
+        // Validar que adminData es válido antes de guardar
+        if (adminData.id && adminData.nombre) {
+          localStorage.setItem('ph_user_data', JSON.stringify(adminData))
+        } else {
+          console.error('AdminData inválido:', adminData)
+        }
+      } else {
+        console.error('Respuesta SMS inválida - faltan datos:', response.data)
+      }
+
+      const mensaje = tipoVerificacion === 'login' 
+        ? 'Inicio de sesión exitoso. ¡Bienvenido!'
+        : 'Registro exitoso. ¡Bienvenido!'
+      
+      toast.success(mensaje)
+      
+      // Sincronizar con AuthProvider antes de redireccionar
+      setTimeout(() => {
+        // Forzar restauración si está disponible
+        if (typeof window !== 'undefined' && (window as any).forceRestoreAuth) {
+          ;(window as any).forceRestoreAuth()
+        }
+        router.push('/admin-ph/dashboard')
+      }, 200)
       
     } catch (error: any) {
       console.error('Error en verificación SMS:', error)
@@ -64,15 +110,13 @@ export default function VerificarSMSPage() {
     }
   }
 
-  const handleReenviar = async () => {
-    if (countdown > 0) return
-
+  const handleResendCode = async () => {
     setIsResending(true)
     
     try {
-      // Intentar reenviar código usando la función de registro nuevamente
-      // o implementar endpoint específico para reenvío
-      toast.success('Código reenviado exitosamente')
+      // Usar el endpoint específico para reenviar código
+      const response = await authApi.resendSmsCode(telefono)
+      toast.success(response.message || 'Código reenviado exitosamente')
       setCountdown(60)
       
       // Reiniciar countdown
@@ -88,6 +132,14 @@ export default function VerificarSMSPage() {
       
     } catch (error: any) {
       console.error('Error al reenviar código:', error)
+      
+      // Si el registro expiró, redirigir al registro
+      if (error.message?.includes('registro temporal') || error.message?.includes('expirado')) {
+        toast.error('El tiempo de verificación ha expirado. Debe registrarse nuevamente.')
+        router.push('/admin-ph')
+        return
+      }
+      
       toast.error(error.message || 'Error al reenviar código')
     } finally {
       setIsResending(false)
@@ -118,10 +170,13 @@ export default function VerificarSMSPage() {
               <Smartphone className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">
-              Verificación SMS
+              {tipoVerificacion === 'login' ? 'Verificación de Acceso' : 'Verificación de Registro'}
             </h1>
             <p className="text-blue-100 text-sm">
-              Hemos enviado un código de verificación al número
+              {tipoVerificacion === 'login' 
+                ? 'Para completar el inicio de sesión, ingresa el código enviado al'
+                : 'Para completar el registro, ingresa el código enviado al'
+              }
             </p>
             <p className="text-white font-semibold mt-1">
               {telefono}
@@ -166,7 +221,7 @@ export default function VerificarSMSPage() {
                 ¿No recibiste el código?
               </p>
               <button
-                onClick={handleReenviar}
+                onClick={handleResendCode}
                 disabled={countdown > 0 || isResending}
                 className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
               >

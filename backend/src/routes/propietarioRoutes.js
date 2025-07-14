@@ -21,8 +21,11 @@ router.post('/solicitar-codigo', propietarioController.solicitarCodigoVerificaci
 
 router.post('/consultar', propietarioController.consultarInmuebles);
 
-router.post('/verificar-estado', propietarioController.verificarEstadoCuenta);
+// router.post('/verificar-estado', propietarioController.verificarEstadoCuenta); // TODO: Implementar
 
 router.post('/generar-paz-y-salvo', propietarioController.generarPazYSalvo);
+
+// Nueva ruta para descargar PDFs generados
+router.get('/descargar-paz-y-salvo/:filename', propietarioController.descargarPazYSalvo);
 
 module.exports = router;

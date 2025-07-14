@@ -4,7 +4,7 @@ import React from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Phone, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Phone, ArrowLeft, ArrowRight, CreditCard } from 'lucide-react'
 
 import { Copropiedad } from '@/types/copropiedad'
 import { Input } from '@/components/ui/Input'
@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 
 const phoneSchema = z.object({
+  cedula: z.string()
+    .min(7, 'La cédula debe tener al menos 7 dígitos')
+    .max(12, 'La cédula no puede tener más de 12 dígitos')
+    .regex(/^\d+$/, 'La cédula solo debe contener números'),
   telefono: z.string()
     .min(10, 'El número debe tener 10 dígitos')
     .max(10, 'El número debe tener 10 dígitos')
@@ -22,7 +26,7 @@ type PhoneFormData = z.infer<typeof phoneSchema>
 
 interface PhoneStepProps {
   copropiedad: Copropiedad | null
-  onSubmit: (telefono: string) => void
+  onSubmit: (cedula: string, telefono: string) => void
   onBack: () => void
   loading: boolean
 }
@@ -38,7 +42,7 @@ export const PhoneStep: React.FC<PhoneStepProps> = ({
   })
 
   const handleFormSubmit = (data: PhoneFormData) => {
-    onSubmit(data.telefono)
+    onSubmit(data.cedula, data.telefono)
   }
 
   return (
@@ -60,6 +64,15 @@ export const PhoneStep: React.FC<PhoneStepProps> = ({
       )}
 
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <Input
+          {...register('cedula')}
+          label="Número de Cédula"
+          placeholder="Ej: 12345678"
+          icon={CreditCard}
+          error={errors.cedula?.message}
+          helpText="Sin puntos ni espacios"
+        />
+        
         <Input
           {...register('telefono')}
           label="Número de Celular"

@@ -80,9 +80,9 @@ services:
     container_name: ph-frontend
     restart: unless-stopped
     ports:
-      - "3005:3000"
+      - "3002:3002"
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:4000
+      - NEXT_PUBLIC_API_URL=http://backend:3000
     depends_on:
       - backend
     networks:

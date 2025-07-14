@@ -40,6 +40,21 @@ Thumbs.db
 !.vscode/tasks.json
 !.vscode/launch.json
 
-# Archivos de servicio
+# Archivos de servicio y credenciales
 *.pem
 google-credentials.json
+*.json.key
+sistema-ph-colombia-*.json
+
+# Archivos de configuración sensibles
+backend/config/google-credentials.example.json
+backend/src/config/smsConfig.js
+
+# Archivos de prueba con credenciales
+backend/test-*.js
+backend/*test*.js
+test-*.js
+
+# Documentación con información sensible
+docs/*SMS*.md
+docs/*GOOGLE*.md

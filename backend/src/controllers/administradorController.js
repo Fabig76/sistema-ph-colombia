@@ -132,23 +132,33 @@ const registrarCopropiedad = async (req, res) => {
       // Extraer ID de la hoja si es una URL
       const sheetId = googleSheetsService.extractSheetId(hojaGoogleSheetsId);
       
-      // Validar estructura de la hoja
-      const validacion = await googleSheetsService.validarHoja(sheetId);
+      // 1. Validar estructura/formato de la hoja
+      const validacionFormato = await googleSheetsService.validateSheetFormat(sheetId);
       
-      if (!validacion.success) {
+      if (!validacionFormato.isValid) {
         return res.status(400).json({
           status: 'error',
-          message: `Error en la hoja de Google Sheets: ${validacion.message}`
+          message: `Error en formato de la hoja: ${validacionFormato.message}`
         });
       }
       
-      // Verificar que el NIT y nombre coinciden con los de la hoja
-      if (validacion.nit !== nit || validacion.nombreCopropiedad !== nombre) {
+      // 2. Validar que los datos de NIT y nombre coincidan
+      const validacionDatos = await googleSheetsService.validateCopropiedadData(sheetId, nit, nombre);
+      
+      if (!validacionDatos.isValid) {
         return res.status(400).json({
           status: 'error',
-          message: 'El NIT y/o nombre de la copropiedad no coinciden con los datos en la hoja de Google Sheets'
+          message: validacionDatos.message
         });
       }
+      
+      logger.info('Hoja de Google Sheets validada exitosamente (formato y datos)', 'administrador', { 
+        sheetId, 
+        adminId, 
+        nit, 
+        nombre,
+        datosValidados: validacionDatos.data
+      });
     } catch (error) {
       logger.error(`Error al validar hoja de Google Sheets: ${error.message}`, 'administrador', { error, adminId });
       return res.status(400).json({
@@ -183,9 +193,7 @@ const registrarCopropiedad = async (req, res) => {
       data: {
         tipo: 'REGISTRO_COPROPIEDAD',
         descripcion: `Registro de copropiedad ${nombre} (${nit})`,
-        administradorId: adminId,
-        copropiedadId: copropiedad.id,
-        fecha: new Date()
+        copropiedadId: copropiedad.id
       }
     });
     
@@ -202,10 +210,12 @@ const registrarCopropiedad = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error(`Error al registrar copropiedad: ${error.message}`, 'administrador', { error, adminId: req.administrador?.id });
+    console.log('🚨 ERROR COMPLETO:', error);
+    console.log('🚨 ERROR STACK:', error.stack);
+    logger.error(`Error al registrar copropiedad: ${error.message}`, 'administrador', { error: error.stack, adminId: req.administrador?.id });
     res.status(500).json({
       status: 'error',
-      message: 'Error al registrar copropiedad'
+      message: `Error al registrar copropiedad: ${error.message}`
     });
   }
 };
@@ -274,7 +284,7 @@ const getCopropiedad = async (req, res) => {
       where: {
         copropiedadId: copropiedad.id,
         tipo: {
-          in: ['CONSULTA_PROPIETARIO', 'GENERACION_PAZ_Y_SALVO']
+          in: ['GENERACION_PAZ_Y_SALVO']
         },
         fecha: {
           gte: new Date(new Date().setDate(new Date().getDate() - 30)) // Últimos 30 días
@@ -286,7 +296,7 @@ const getCopropiedad = async (req, res) => {
     });
     
     // Formatear estadísticas
-    const consultasPropietarios = estadisticas.find(e => e.tipo === 'CONSULTA_PROPIETARIO')?._count?.id || 0;
+    const consultasPropietarios = estadisticas.find(e => e.tipo === 'GENERACION_PAZ_Y_SALVO')?._count?.id || 0;
     const pazYSalvosGenerados = estadisticas.find(e => e.tipo === 'GENERACION_PAZ_Y_SALVO')?._count?.id || 0;
     
     res.status(200).json({
@@ -343,12 +353,12 @@ const actualizarCopropiedad = async (req, res) => {
         const sheetId = googleSheetsService.extractSheetId(hojaGoogleSheetsId);
         
         // Validar estructura de la hoja
-        const validacion = await googleSheetsService.validarHoja(sheetId);
+        const validacionFormato = await googleSheetsService.validateSheetFormat(sheetId);
         
-        if (!validacion.success) {
+        if (!validacionFormato.isValid) {
           return res.status(400).json({
             status: 'error',
-            message: `Error en la hoja de Google Sheets: ${validacion.message}`
+            message: `Error en formato de la hoja: ${validacionFormato.message}`
           });
         }
         
@@ -561,11 +571,11 @@ const getEstadisticas = async (req, res) => {
     const estadisticasPorCopropiedad = [];
     
     for (const copropiedad of copropiedades) {
-      // Consultas de propietarios
+      // Consultas de propietarios (usando GENERACION_PAZ_Y_SALVO como proxy)
       const consultasPropietarios = await prisma.evento.count({
         where: {
           copropiedadId: copropiedad.id,
-          tipo: 'CONSULTA_PROPIETARIO',
+          tipo: 'GENERACION_PAZ_Y_SALVO',
           fecha: { gte: fechaInicio }
         }
       });

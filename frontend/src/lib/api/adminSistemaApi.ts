@@ -19,9 +19,13 @@ const loginSuperAdmin = async (username: string, password: string) => {
     if (response.data.status === 'success') {
       const { token, admin } = response.data.data;
       
-      // Guardar token en localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(admin));
+      // Guardar token en localStorage SOLO si los datos son válidos
+      if (token && admin && typeof admin === 'object' && admin.id) {
+        localStorage.setItem('ph_auth_token', token);
+        localStorage.setItem('ph_user_data', JSON.stringify(admin));
+      } else {
+        console.error('Datos de admin sistema inválidos:', { token: !!token, admin });
+      }
       
       return {
         token,

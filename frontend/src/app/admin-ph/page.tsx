@@ -34,8 +34,6 @@ interface RegisterForm {
   telefono: string
   email: string
   password: string
-  nitResolucion: string
-  fechaResolucion: string
 }
 
 export default function AdminPHPage() {
@@ -53,9 +51,7 @@ export default function AdminPHPage() {
     nombre: '',
     telefono: '',
     email: '',
-    password: '',
-    nitResolucion: '',
-    fechaResolucion: ''
+    password: ''
   })
 
   // Verificar si ya está autenticado
@@ -73,14 +69,25 @@ export default function AdminPHPage() {
     try {
       const response = await authApi.loginAdminPh(loginForm.telefono, loginForm.password)
       
-      // Guardar token y datos del usuario
-      apiUtils.saveAuthToken(response.token)
-      apiUtils.saveUserData(response.admin)
+      // Verificar si requiere verificación SMS
+      if (response.requireVerification) {
+        toast.success('Se ha enviado un código de verificación a tu teléfono')
+        // Redirigir a página de verificación SMS con tipo login
+        router.push(`/admin-ph/verificar-sms?telefono=${encodeURIComponent(loginForm.telefono)}&tipo=login`)
+        return
+      }
       
-      toast.success(`¡Bienvenido, ${response.admin.nombre}!`)
-      
-      // Redirigir al dashboard
-      router.push('/admin-ph/dashboard')
+      // Si no requiere verificación (caso directo)
+      if (response.token && response.admin) {
+        // Guardar token y datos del usuario
+        apiUtils.saveAuthToken(response.token)
+        apiUtils.saveUserData(response.admin)
+        
+        toast.success(`¡Bienvenido, ${response.admin.nombre}!`)
+        
+        // Redirigir al dashboard
+        router.push('/admin-ph/dashboard')
+      }
       
     } catch (error: any) {
       console.error('Error en login:', error)
@@ -117,7 +124,7 @@ export default function AdminPHPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center p-4" suppressHydrationWarning>
       {/* Botón de regreso */}
       <Link 
         href="/"
@@ -133,10 +140,11 @@ export default function AdminPHPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        suppressHydrationWarning
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 text-white">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 text-white" suppressHydrationWarning>
+          <div className="flex items-center gap-3 mb-2" suppressHydrationWarning>
             <Building2 className="w-8 h-8" />
             <h1 className="text-2xl font-bold">Admin PH</h1>
           </div>
@@ -146,8 +154,8 @@ export default function AdminPHPage() {
         </div>
 
         {/* Toggles de modo */}
-        <div className="px-8 pt-6">
-          <div className="flex bg-gray-100 rounded-lg p-1">
+        <div className="px-8 pt-6" suppressHydrationWarning>
+          <div className="flex bg-gray-100 rounded-lg p-1" suppressHydrationWarning>
             <button
               onClick={() => setMode('login')}
               className={cn(
@@ -176,7 +184,7 @@ export default function AdminPHPage() {
         </div>
 
         {/* Formularios */}
-        <div className="px-8 py-6">
+        <div className="px-8 py-6" suppressHydrationWarning>
           {mode === 'login' ? (
             /* Formulario de Login */
             <motion.form
@@ -188,11 +196,11 @@ export default function AdminPHPage() {
               className="space-y-4"
             >
               {/* Teléfono */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Número de celular
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="tel"
@@ -206,11 +214,11 @@ export default function AdminPHPage() {
               </div>
 
               {/* Contraseña */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contraseña
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -250,11 +258,11 @@ export default function AdminPHPage() {
               className="space-y-4"
             >
               {/* Nombre */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre completo
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
@@ -268,11 +276,11 @@ export default function AdminPHPage() {
               </div>
 
               {/* Teléfono */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Número de celular
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="tel"
@@ -289,11 +297,11 @@ export default function AdminPHPage() {
               </div>
 
               {/* Email */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Correo electrónico
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="email"
@@ -306,47 +314,14 @@ export default function AdminPHPage() {
                 </div>
               </div>
 
-              {/* Campo de NIT de resolución */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Número de Resolución de Nombramiento
-                </label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Resolución de la alcaldía"
-                    value={registerForm.nitResolucion}
-                    onChange={(e) => setRegisterForm(prev => ({ ...prev, nitResolucion: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
 
-              {/* Campo de fecha de resolución */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de la Resolución
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="date"
-                    value={registerForm.fechaResolucion}
-                    onChange={(e) => setRegisterForm(prev => ({ ...prev, fechaResolucion: e.target.value }))}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
 
               {/* Contraseña */}
-              <div>
+              <div suppressHydrationWarning>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Contraseña
                 </label>
-                <div className="relative">
+                <div className="relative" suppressHydrationWarning>
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -382,7 +357,7 @@ export default function AdminPHPage() {
         </div>
 
         {/* Footer */}
-        <div className="px-8 pb-6 text-center">
+        <div className="px-8 pb-6 text-center" suppressHydrationWarning>
           <p className="text-xs text-gray-500">
             Al continuar, acepta nuestros{' '}
             <Link href="/terminos" className="text-blue-600 hover:text-blue-700">

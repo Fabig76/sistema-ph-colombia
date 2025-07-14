@@ -11,14 +11,19 @@ const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const { PrismaClient } = require('@prisma/client');
 // const logger = require('./utils/logger');
 require('dotenv').config();
+
+// Instancia de Prisma para health checks
+const prisma = new PrismaClient();
 
 // Importar rutas
 const authRoutes = require('./routes/authRoutes');
 const administradorRoutes = require('./routes/administradorRoutes');
 const propietarioRoutes = require('./routes/propietarioRoutes');
 const adminSistemaRoutes = require('./routes/adminSistemaRoutes');
+const copropiedadRoutes = require('./routes/copropiedadRoutes');
 
 // Crear la aplicación Express
 const app = express();
@@ -27,10 +32,17 @@ const app = express();
 app.use(helmet());
 
 // Configuración de CORS
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3002', // Frontend principal 
+  'http://localhost:3003'
+];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: allowedOrigins, // Hardcoded temporalmente 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
 // Compresión de respuestas
@@ -87,11 +99,38 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rutas principales
-app.use('/api/v1/auth', authLimiter, authRoutes);
-app.use('/api/v1/administradores', apiLimiter, administradorRoutes);
-app.use('/api/v1/propietarios', apiLimiter, propietarioRoutes);
-app.use('/api/v1/admin-sistema', apiLimiter, adminSistemaRoutes);
+// MIDDLEWARE DE DEBUGGING - Rastrear todas las peticiones
+console.log('🔴 REGISTRANDO MIDDLEWARE DE DEBUGGING...');
+app.use((req, res, next) => {
+  try {
+    console.log(`🚨 ${req.method} ${req.path}`);
+    next();
+  } catch (error) {
+    console.error('Error en middleware debug:', error);
+    next();
+  }
+});
+console.log('✅ MIDDLEWARE DE DEBUGGING REGISTRADO');
+
+// Rutas principales (RATE LIMITING TEMPORALMENTE DESHABILITADO PARA DEBUG)
+console.log('🔗 Registrando rutas...');
+console.log('🔗 /api/v1/auth:', typeof authRoutes);
+app.use('/api/v1/auth', authRoutes);
+console.log('🔗 /api/v1/administradores:', typeof administradorRoutes);
+app.use('/api/v1/administradores', administradorRoutes);
+console.log('🔗 /api/v1/propietarios:', typeof propietarioRoutes);
+app.use('/api/v1/propietarios', propietarioRoutes);
+console.log('🔗 /api/v1/admin-sistema:', typeof adminSistemaRoutes);
+app.use('/api/v1/admin-sistema', adminSistemaRoutes);
+console.log('🔗 /api/v1/copropiedades:', typeof copropiedadRoutes);
+app.use('/api/v1/copropiedades', copropiedadRoutes);
+console.log('✅ Todas las rutas registradas');
+
+// Rutas de prueba para Google APIs (SOLO EN DESARROLLO)
+if (process.env.NODE_ENV !== 'production') {
+  const testGoogleApisRoutes = require('./routes/testGoogleApis');
+  app.use('/api/test-google', testGoogleApisRoutes);
+}
 
 // Ruta de estado del servidor (Health Check)
 app.get('/api/v1/health', async (req, res) => {
@@ -99,9 +138,10 @@ app.get('/api/v1/health', async (req, res) => {
     // Verificar conexión a la base de datos
     let dbStatus = 'disconnected';
     try {
-      await prisma.$queryRaw`SELECT 1`;
+      await prisma.$queryRaw`SELECT 1 as test`;
       dbStatus = 'connected';
     } catch (dbError) {
+      console.log('Database health check error:', dbError.message);
       // logger.error(`Error en health check - Base de datos: ${dbError.message}`, 'health', { error: dbError });
     }
     

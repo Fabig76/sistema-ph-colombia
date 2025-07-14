@@ -1,6 +1,7 @@
 # Sistema Paz y Salvos PH Colombia
 
-> 🟢 **Estado:** Backend completamente funcional - Última corrección: 2025-07-10
+> 🟢 **Estado:** Sistema completamente funcional - Frontend + Backend + APIs operativas  
+> 📖 **Documentación:** Guías de inicio completas y verificadas - 2025-07-12
 
 Sistema web modular para administración de propiedades horizontales en Colombia, especializado en la generación de paz y salvos.
 
@@ -33,21 +34,42 @@ Sistema web modular para administración de propiedades horizontales en Colombia
 - Cuenta en servicio SMS (Hablame.co o similar)
 - Cuenta en Bold para pagos
 
-## Inicio Rápido
+## 🚀 Inicio Rápido
 
-### Opción 1: Desarrollo local
+### 📋 Guía Completa de Inicio
 
-1. Clonar el repositorio
-2. Configurar variables de entorno (copiar `.env.example` a `.env`)
-3. Instalar dependencias: 
+**Para iniciar el sistema completo paso a paso, consulta:**
+- 📖 **[SYSTEM_STARTUP_GUIDE.md](./docs/SYSTEM_STARTUP_GUIDE.md)** - Guía detallada de inicio
+- 📊 **[SYSTEM_STARTUP_EXECUTION_REPORT.md](./docs/SYSTEM_STARTUP_EXECUTION_REPORT.md)** - Proceso verificado
+
+### ⚡ Inicio Rápido (Orden Correcto):
+
+1. **Servicios Docker:**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
    ```
-   cd backend && npm install
-   cd ../frontend && npm install
+
+2. **Backend:** (nueva terminal)
+   ```bash
+   cd backend && npm install && npm run dev
    ```
-4. Ejecutar migraciones: `cd backend && npx prisma migrate dev`
-5. Cargar datos de prueba: `cd backend && npm run db:seed`
-6. Iniciar backend: `cd backend && npm run dev`
-7. Iniciar frontend: `cd frontend && npm run dev`
+
+3. **Frontend:** (nueva terminal)
+   ```bash
+   cd frontend && npm install && npm run dev
+   ```
+
+4. **Verificación:**
+   ```bash
+   curl http://localhost:4000/api/v1/health  # Backend
+   curl http://localhost:3002                # Frontend
+   ```
+
+### 🔍 Puntos Críticos:
+- ✅ **Backend:** Puerto 4000 (verificar con health check)
+- ✅ **Frontend:** Puerto 3002 (o el que asigne Next.js)
+- ✅ **Docker:** Todos los servicios "healthy"
+- ✅ **Google APIs:** Credenciales configuradas
 
 ### Opción 2: Usando Docker (recomendado)
 
@@ -113,6 +135,40 @@ curl http://localhost:4000/api/info
 
 ---
 
-## Documentación
+## 📚 Documentación Técnica
 
-Ver carpeta `/docs` para documentación detallada.
+### Documentos de Referencia Principal:
+- **[TECHNICAL_REFERENCE_GUIDE.md](./docs/TECHNICAL_REFERENCE_GUIDE.md)** - 📖 Guía técnica completa y documento base de consulta
+- **[GOOGLE_APIS_INTEGRATION_FINAL_REPORT.md](./docs/GOOGLE_APIS_INTEGRATION_FINAL_REPORT.md)** - 🔧 Reporte final del proceso de integración Google APIs
+
+### Documentación por Módulos:
+- **[FRONTEND_REFACTOR_FIXES.md](./docs/FRONTEND_REFACTOR_FIXES.md)** - Refactorización frontend y correcciones
+- **[DEVELOPER_GUIDE.md](./docs/DEVELOPER_GUIDE.md)** - Guía rápida para desarrolladores
+- **[CHANGELOG.md](./docs/CHANGELOG.md)** - Historial detallado de cambios
+
+### 🎯 Documentos Críticos para Desarrollo:
+
+#### Para Nuevos Desarrolladores:
+1. **Inicio rápido:** `TECHNICAL_REFERENCE_GUIDE.md` (secciones: Stack, Configuración, Comandos)
+2. **Solución problemas:** `TECHNICAL_REFERENCE_GUIDE.md` (sección: Solución de Problemas)
+3. **Últimas correcciones:** `GOOGLE_APIS_INTEGRATION_FINAL_REPORT.md`
+
+#### Para Modificaciones al Sistema:
+1. **Antes de modificar:** Revisar "Protocolo de Modificaciones" en `TECHNICAL_REFERENCE_GUIDE.md`
+2. **Tecnologías implicadas:** Sección "Stack Tecnológico" y "Integración Google APIs"
+3. **Configuración Docker:** Sección "Configuración Docker" para servicios
+4. **Variables de entorno:** Sección "Variables de Entorno" para configuraciones
+
+#### Para Resolución de Errores:
+1. **Errores comunes:** `TECHNICAL_REFERENCE_GUIDE.md` (sección: Solución de Problemas)
+2. **Health checks:** Comandos de verificación de servicios
+3. **Logs y monitoreo:** Configuración de logging y debugging
+
+### 📋 Estado Actual Documentado:
+- ✅ **Backend:** Completamente funcional con Google APIs integradas
+- ✅ **Frontend:** Arquitectura modular refactorizada
+- ✅ **Docker:** Todos los servicios configurados (PostgreSQL, Redis, RabbitMQ)
+- ✅ **Testing:** Endpoints de prueba Google APIs funcionales
+- ✅ **Documentación:** Guías técnicas completas disponibles
+
+Ver carpeta `/docs` para documentación completa.

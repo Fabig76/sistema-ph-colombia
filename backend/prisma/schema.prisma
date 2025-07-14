@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -10,121 +8,157 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Modelo para Administrador del Sistema (SuperAdmin)
 model AdminSistema {
-  id             String   @id @default(uuid())
-  nombre         String
-  email          String   @unique
-  telefono       String   @unique
-  password       String
-  activo         Boolean  @default(true)
-  ultimoAcceso   DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String    @id @default(uuid())
+  nombre       String
+  email        String    @unique
+  telefono     String    @unique
+  password     String
+  activo       Boolean   @default(true)
+  ultimoAcceso DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@map("admin_sistema")
 }
 
-// Modelo para Administradores de Propiedad Horizontal
 model Administrador {
-  id                String        @id @default(uuid())
-  nombre            String
-  email             String        @unique
-  telefono          String        @unique
-  password          String
-  activo            Boolean       @default(true)
-  ultimoAcceso      DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  copropiedades     Copropiedad[]
-  codigosSMS        CodigoSMS[]
-  intentosFallidos  Int           @default(0)
-  bloqueadoHasta    DateTime?
-  
+  id               String         @id @default(uuid())
+  nombre           String
+  email            String         @unique
+  telefono         String         @unique
+  password         String
+  activo           Boolean        @default(true)
+  ultimoAcceso     DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  intentosFallidos Int            @default(0)
+  bloqueadoHasta   DateTime?
+  fechaRegistro    DateTime?
+  verificado       Boolean        @default(false)
+  codigosSMS       CodigoSMS[]
+  copropiedades    Copropiedad[]
+  subscriptions    Subscription[]
+
   @@map("administradores")
 }
 
-// Modelo para Copropiedades
 model Copropiedad {
-  id                  String        @id @default(uuid())
-  nit                 String        @unique
-  nombre              String
-  administradorId     String
-  administrador       Administrador @relation(fields: [administradorId], references: [id])
-  hojaGoogleSheetsId  String
+  id                    String        @id @default(uuid())
+  nit                   String        @unique
+  nombre                String
+  administradorId       String
+  hojaGoogleSheetsId    String
   plantillaGoogleDocsId String
-  resolucionNumero    String?
-  resolucionFecha     DateTime?
-  activo              Boolean       @default(true)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  eventos             Evento[]
-  pagos               Pago[]
-  periodoGratis       Boolean       @default(true)
-  periodoGratisHasta  DateTime?
-  
+  resolucionNumero      String?
+  resolucionFecha       DateTime?
+  activo                Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  periodoGratis         Boolean       @default(true)
+  periodoGratisHasta    DateTime?
+  fechaRegistro         DateTime      @default(now())
+  fechaFinPrueba        DateTime?
+  estadoPago            String        @default("PRUEBA")
+  administrador         Administrador @relation(fields: [administradorId], references: [id])
+  eventos               Evento[]
+  pagos                 Pago[]
+  subscription          Subscription?
+
   @@map("copropiedades")
 }
 
-// Modelo para Códigos SMS
+model RegistroTemporal {
+  id         String   @id @default(uuid())
+  nombre     String
+  email      String
+  telefono   String   @unique
+  password   String
+  tipo       String   @default("administrador")
+  expiradoEn DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("registros_temporales")
+}
+
 model CodigoSMS {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   telefono        String
   codigo          String
   tipo            TipoCodigoSMS
   administradorId String?
-  administrador   Administrador? @relation(fields: [administradorId], references: [id])
-  usado           Boolean       @default(false)
+  usado           Boolean        @default(false)
   expiradoEn      DateTime
-  intentos        Int           @default(0)
-  createdAt       DateTime      @default(now())
-  
+  intentos        Int            @default(0)
+  createdAt       DateTime       @default(now())
+  administrador   Administrador? @relation(fields: [administradorId], references: [id])
+
   @@map("codigos_sms")
 }
 
-// Modelo para Eventos del Sistema
 model Evento {
-  id             String       @id @default(uuid())
-  tipo           TipoEvento
-  descripcion    String
-  copropiedadId  String?
-  copropiedad    Copropiedad? @relation(fields: [copropiedadId], references: [id])
-  metadatos      Json?
-  createdAt      DateTime     @default(now())
-  
+  id            String       @id @default(uuid())
+  tipo          TipoEvento
+  descripcion   String
+  copropiedadId String?
+  metadatos     Json?
+  createdAt     DateTime     @default(now())
+  copropiedad   Copropiedad? @relation(fields: [copropiedadId], references: [id])
+
   @@map("eventos")
 }
 
-// Modelo para Pagos
 model Pago {
-  id             String       @id @default(uuid())
-  copropiedadId  String
-  copropiedad    Copropiedad  @relation(fields: [copropiedadId], references: [id])
-  monto          Decimal      @db.Decimal(10, 2)
-  referencia     String       @unique
-  estado         EstadoPago
-  fechaPago      DateTime?
-  metodoPago     String?
-  comprobante    String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  
+  id              String      @id @default(uuid())
+  copropiedadId   String
+  monto           Decimal     @db.Decimal(10, 2)
+  referencia      String?     @unique
+  estado          EstadoPago
+  fechaPago       DateTime?
+  metodoPago      String?
+  comprobante     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  administradorId String?
+  datosMock       Json?
+  descripcion     String?
+  moneda          String      @default("COP")
+  proveedor       String      @default("mock")
+  transactionId   String      @unique
+  copropiedad     Copropiedad @relation(fields: [copropiedadId], references: [id])
+
   @@map("pagos")
 }
 
-// Modelo para Logs del Sistema
+model Subscription {
+  id              String        @id @default(uuid())
+  copropiedadId   String        @unique
+  administradorId String
+  activa          Boolean       @default(false)
+  activadaEn      DateTime?
+  expiraEn        DateTime?
+  ultimoPago      DateTime?
+  periodoGracia   Int           @default(7)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  administrador   Administrador @relation(fields: [administradorId], references: [id])
+  copropiedad     Copropiedad   @relation(fields: [copropiedadId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
 model Log {
-  id          String    @id @default(uuid())
-  nivel       NivelLog
-  mensaje     String
-  origen      String
-  metadatos   Json?
-  timestamp   DateTime  @default(now())
-  
+  id        String   @id @default(uuid())
+  nivel     NivelLog
+  mensaje   String
+  origen    String
+  metadatos Json?
+  timestamp DateTime @default(now())
+
   @@map("logs")
 }
 
-// Enumeraciones
 enum TipoCodigoSMS {
   REGISTRO
   LOGIN
@@ -147,6 +181,9 @@ enum EstadoPago {
   COMPLETADO
   FALLIDO
   CANCELADO
+  APPROVED
+  DECLINED
+  PROCESSING
 }
 
 enum NivelLog {

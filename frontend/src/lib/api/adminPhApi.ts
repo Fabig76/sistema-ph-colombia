@@ -11,7 +11,7 @@ const { api } = apiUtils;
  */
 const getCopropiedades = async () => {
   try {
-    const response = await api.get('/admin-ph/copropiedades');
+    const response = await api.get('/administradores/copropiedades');
     
     if (response.data.status === 'success') {
       return response.data.data || [];
@@ -34,7 +34,7 @@ const getCopropiedades = async () => {
  */
 const getCopropiedadById = async (id: string) => {
   try {
-    const response = await api.get(`/admin-ph/copropiedades/${id}`);
+    const response = await api.get(`/administradores/copropiedades/${id}`);
     
     if (response.data.status === 'success') {
       return response.data.data;
@@ -66,7 +66,17 @@ const registrarCopropiedad = async (data: {
   googleDocUrl: string;
 }) => {
   try {
-    const response = await api.post('/admin-ph/copropiedades', data);
+    // Mapear los campos al formato esperado por el backend
+    const backendData = {
+      nombre: data.nombre,
+      nit: data.nit,
+      resolucionNumero: data.resolucionNumero,
+      resolucionFecha: data.resolucionFecha,
+      hojaGoogleSheetsId: data.googleSheetUrl,
+      plantillaGoogleDocsId: data.googleDocUrl
+    };
+    
+    const response = await api.post('/administradores/copropiedades', backendData);
     
     if (response.data.status === 'success') {
       return {
@@ -97,7 +107,7 @@ const registrarCopropiedad = async (data: {
  */
 const eliminarCopropiedad = async (id: string) => {
   try {
-    const response = await api.delete(`/admin-ph/copropiedades/${id}`);
+    const response = await api.delete(`/administradores/copropiedades/${id}`);
     
     if (response.data.status === 'success') {
       return {
@@ -125,7 +135,7 @@ const eliminarCopropiedad = async (id: string) => {
  */
 const getEstadisticas = async () => {
   try {
-    const response = await api.get('/admin-ph/estadisticas');
+    const response = await api.get('/administradores/estadisticas');
     
     if (response.data.status === 'success') {
       return response.data.data;

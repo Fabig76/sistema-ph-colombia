@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import "./globals.css";
 import { Toaster } from 'react-hot-toast'
+import { AuthProvider } from '@/lib/hooks/useAuth'
+import DevScript from '@/components/DevScript'
+import ClientOnly from '@/components/ClientOnly'
+import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,28 +30,24 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL('https://sistema-ph-colombia.com'),
   openGraph: {
-    type: 'website',
-    locale: 'es_CO',
-    url: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     title: 'Sistema PH Colombia',
     description: 'Sistema integral de gestión para propiedades horizontales en Colombia',
+    url: 'https://sistema-ph-colombia.com',
     siteName: 'Sistema PH Colombia',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Sistema PH Colombia',
-    description: 'Sistema integral de gestión para propiedades horizontales en Colombia',
-    creator: '@phcolombia',
+    locale: 'es_CO',
+    type: 'website',
   },
   robots: {
-    index: false, // No indexar en desarrollo
-    follow: false,
-    nocache: true,
+    index: true,
+    follow: true,
     googleBot: {
-      index: false,
-      follow: false,
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
     },
   },
 }
@@ -59,72 +58,58 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" className="h-full">
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <meta name="theme-color" content="#2563eb" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-      </head>
-      <body className={`${inter.className} h-full antialiased`}>
-        <div className="min-h-screen bg-gray-50">
-          {/* Contenido principal */}
-          <main className="min-h-screen">
+    <html lang="es">
+      <body className={inter.className} suppressHydrationWarning={true}>
+        <ClientOnly
+          fallback={
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p className="text-white text-lg">Cargando aplicación...</p>
+              </div>
+            </div>
+          }
+        >
+          <AuthProvider>
             {children}
-          </main>
-          
-          {/* Toast notifications */}
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                fontSize: '14px',
-                maxWidth: '400px',
-              },
-              success: {
+            <Toaster 
+              position="top-center"
+              toastOptions={{
+                duration: 4000,
                 style: {
-                  background: '#10b981',
+                  background: '#363636',
+                  color: '#fff',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 },
-                iconTheme: {
-                  primary: '#fff',
-                  secondary: '#10b981',
+                success: {
+                  iconTheme: {
+                    primary: '#10b981',
+                    secondary: '#ffffff',
+                  },
+                  style: {
+                    background: '#10b981',
+                    color: '#ffffff',
+                  },
                 },
-              },
-              error: {
-                style: {
-                  background: '#ef4444',
+                error: {
+                  iconTheme: {
+                    primary: '#ef4444',
+                    secondary: '#ffffff',
+                  },
+                  style: {
+                    background: '#ef4444',
+                    color: '#ffffff',
+                  },
                 },
-                iconTheme: {
-                  primary: '#fff',
-                  secondary: '#ef4444',
-                },
-              },
-              loading: {
-                style: {
-                  background: '#6b7280',
-                },
-              },
-            }}
-          />
-        </div>
-        
-        {/* Scripts de desarrollo */}
-        {process.env.NODE_ENV === 'development' && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                console.log('%c🏗️ Sistema PH Colombia - Modo Desarrollo', 'color: #2563eb; font-size: 16px; font-weight: bold;');
-                console.log('%cAPI URL: ${process.env.NEXT_PUBLIC_API_URL}', 'color: #059669;');
-                console.log('%cVersión: ${process.env.NEXT_PUBLIC_APP_VERSION}', 'color: #059669;');
-              `,
-            }}
-          />
-        )}
+              }}
+            />
+          </AuthProvider>
+        </ClientOnly>
+        <DevScript />
       </body>
     </html>
   )

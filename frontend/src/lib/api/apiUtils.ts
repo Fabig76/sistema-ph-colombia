@@ -47,10 +47,20 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    console.log('🚨 INTERCEPTOR - Error detectado:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      message: error.response?.data?.message
+    })
+    
     // Si el error es 401 (no autorizado), limpiamos la autenticación
     if (error.response && error.response.status === 401) {
+      console.log('❌ INTERCEPTOR - Error 401: Limpiando autenticación')
       clearAuth();
       // En un entorno real, aquí podríamos redirigir al login
+    } else if (error.response && error.response.status === 403) {
+      console.log('⚠️ INTERCEPTOR - Error 403: Acceso denegado, NO limpiando auth')
     }
     return Promise.reject(error);
   }
@@ -114,8 +124,13 @@ const getUserData = (): any | null => {
  * Limpia todos los datos de autenticación
  */
 const clearAuth = (): void => {
+  console.log('🧹 CLEAR_AUTH - Limpiando localStorage:', {
+    hadToken: !!localStorage.getItem(TOKEN_KEY),
+    hadUserData: !!localStorage.getItem(USER_DATA_KEY)
+  })
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_DATA_KEY);
+  console.log('❌ CLEAR_AUTH - localStorage limpiado')
 };
 
 /**

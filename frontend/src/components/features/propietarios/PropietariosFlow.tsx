@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCopropiedad } from '@/hooks/useCopropiedad'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/lib/hooks/useAuth'
 import { Copropiedad } from '@/types/copropiedad'
 import { SearchStep } from './steps/SearchStep'
 import { PhoneStep } from './steps/PhoneStep'
@@ -15,6 +15,8 @@ type Step = 'search' | 'phone' | 'verify' | 'results'
 export const PropietariosFlow: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<Step>('search')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [cedula, setCedula] = useState('')
+  const [codigoVerificacion, setCodigoVerificacion] = useState('')
   
   const {
     copropiedades,
@@ -47,7 +49,8 @@ export const PropietariosFlow: React.FC = () => {
     setCurrentStep('phone')
   }
 
-  const handlePhoneSubmit = async (telefono: string) => {
+  const handlePhoneSubmit = async (cedulaInput: string, telefono: string) => {
+    setCedula(cedulaInput)
     setPhoneNumber(telefono)
     const result = await sendVerificationCode(telefono)
     if (result.success) {
@@ -56,9 +59,10 @@ export const PropietariosFlow: React.FC = () => {
   }
 
   const handleVerificationSubmit = async (codigo: string) => {
+    setCodigoVerificacion(codigo)
     const result = await verifyCode({ telefono: phoneNumber, codigo })
     if (result.success && selectedCopropiedad) {
-      const propertiesResult = await searchPropertiesByPhone(phoneNumber, selectedCopropiedad.id)
+      const propertiesResult = await searchPropertiesByPhone(phoneNumber, selectedCopropiedad.id, cedula, codigo)
       if (propertiesResult.success) {
         setCurrentStep('results')
       }
@@ -69,6 +73,8 @@ export const PropietariosFlow: React.FC = () => {
     clearResults()
     setCurrentStep('search')
     setPhoneNumber('')
+    setCedula('')
+    setCodigoVerificacion('')
   }
 
   const handleBackToSearch = () => {
@@ -198,6 +204,9 @@ export const PropietariosFlow: React.FC = () => {
                 <ResultsStep
                   copropiedad={selectedCopropiedad}
                   propiedades={properties}
+                  cedula={cedula}
+                  telefono={phoneNumber}
+                  codigoVerificacion={codigoVerificacion}
                   onNewSearch={handleNewSearch}
                   loading={loading}
                 />

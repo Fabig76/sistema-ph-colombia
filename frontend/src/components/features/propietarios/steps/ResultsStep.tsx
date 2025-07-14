@@ -15,6 +15,9 @@ import toast from 'react-hot-toast'
 interface ResultsStepProps {
   copropiedad: Copropiedad | null
   propiedades: Property[]
+  cedula: string
+  telefono: string
+  codigoVerificacion: string
   onNewSearch: () => void
   loading: boolean
 }
@@ -22,15 +25,39 @@ interface ResultsStepProps {
 export const ResultsStep: React.FC<ResultsStepProps> = ({
   copropiedad,
   propiedades,
+  cedula,
+  telefono,
+  codigoVerificacion,
   onNewSearch,
   loading
 }) => {
   const { generatePazYSalvo } = useCopropiedad()
 
   const handleDownloadPazYSalvo = async (propertyId: string) => {
-    const result = await generatePazYSalvo(propertyId)
-    if (result.success) {
-      toast.success('Paz y salvo generado correctamente')
+    if (!copropiedad) {
+      toast.error('Error: Copropiedad no seleccionada')
+      return
+    }
+
+    const datosGeneracion = {
+      cedula,
+      telefono,
+      codigoVerificacion,
+      nitCopropiedad: copropiedad.nit,
+      inmuebleId: propertyId
+    }
+
+    const result = await generatePazYSalvo(datosGeneracion)
+    if (result.success && result.url) {
+      // Descargar el archivo
+      const link = document.createElement('a')
+      link.href = result.url
+      link.download = `paz-y-salvo-${propertyId}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast.success('Paz y salvo generado y descargado correctamente')
     }
   }
 
